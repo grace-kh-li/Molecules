@@ -26,6 +26,9 @@ class GroupElement:
     def __str__(self):
         return self.element_name
 
+    def __repr__(self):
+        return str(self)
+
     def explain(self):
         return self.notes
 
@@ -38,6 +41,7 @@ class AbstractFiniteGroup:
         for i, element in enumerate(elements):
             element.group = self
             element.group_index = i
+        self.irreps = ()
 
     def __str__(self):
         disp = self.group_name + "= {"
@@ -46,6 +50,9 @@ class AbstractFiniteGroup:
         disp = disp[:-2] + "}"
         return disp
 
+    def __repr__(self):
+        return str(self)
+
     def __eq__(self, other):
         return isinstance(other, AbstractFiniteGroup) and self.group_name == other.group_name
 
@@ -53,6 +60,9 @@ class AbstractFiniteGroup:
         if not isinstance(element, GroupElement):
             return False
         return element in self.elements
+
+    def __iter__(self):
+        return iter(self.elements)
 
     def multiply(self, g1, g2):
         if not isinstance(g1, GroupElement) or not isinstance(g2, GroupElement):
@@ -93,6 +103,9 @@ class GroupRepresentationElement:
     def __str__(self):
         return self.name + ": " + str(self.matrix)
 
+    def __repr__(self):
+        return str(self)
+
 
 class GroupRepresentation:
     def __init__(self, name, group, matrices = None):
@@ -107,10 +120,16 @@ class GroupRepresentation:
             self.representation_elements = [None] * len(self.group.elements)
 
     def __str__(self):
-        s = ""
+        s = self.name + "\n"
         for e in self.representation_elements:
             s += str(e) + "\n"
         return s
+
+    def __repr__(self):
+        return str(self)
+
+    def __iter__(self):
+        return iter(self.representation_elements)
 
 
 
@@ -150,7 +169,7 @@ class GroupRepresentation:
         return True
 
 
-    def define_matrix(self, i, matrix):
+    def _define_matrix(self, i, matrix):
         rep = GroupRepresentationElement(self.group.elements[i], matrix)
         self.representation_elements[i] = rep
 
@@ -169,6 +188,7 @@ class C2vGroupAbstract(AbstractFiniteGroup):
         elements = [e, c2, xz, yz]
         table = np.array([[0,1,2,3],[1,0,3,2],[2,3,0,1],[3,2,1,0]])
         super().__init__("C2v", elements, e, table)
+        self.irreps = (C2v_A1_representation(self), C2v_A2_representation(self), C2v_B1_representation(self), C2v_B2_representation(self))
 
 
 class C3vGroupAbstract(AbstractFiniteGroup):
@@ -189,6 +209,7 @@ class C3vGroupAbstract(AbstractFiniteGroup):
             [5, 4, 3, 2, 1, 0]  # σv″
         ])
         super().__init__("C3v", elements, e, c3v_table)
+        self.irreps = (C3v_A1_representation(self), C3v_A2_representation(self), C3v_E_representation(self))
 
 class CsGroupAbstract(AbstractFiniteGroup):
     def __init__(self):
@@ -200,73 +221,74 @@ class CsGroupAbstract(AbstractFiniteGroup):
             [1, 0]  # σ
         ])
         super().__init__("Cs", elements, e, cs_table)
+        self.irreps = (Cs_A_prime_representation(self), Cs_A_prime_representation(self))
 
 
 class C2v_A1_representation(GroupRepresentation):
-    def __init__(self):
-        super().__init__("C2v_A1", C2vGroupAbstract())
-        self.define_matrix(0, np.array([[1]]))
-        self.define_matrix(1, np.array([[1]]))
-        self.define_matrix(2, np.array([[1]]))
-        self.define_matrix(3, np.array([[1]]))
+    def __init__(self, group):
+        super().__init__("C2v_A1 representation", group)
+        self._define_matrix(0, np.array([[1]]))
+        self._define_matrix(1, np.array([[1]]))
+        self._define_matrix(2, np.array([[1]]))
+        self._define_matrix(3, np.array([[1]]))
 
 class C2v_A2_representation(GroupRepresentation):
-    def __init__(self):
-        super().__init__("C2v_A1", C2vGroupAbstract())
-        self.define_matrix(0, np.array([[1]]))
-        self.define_matrix(1, np.array([[1]]))
-        self.define_matrix(2, np.array([[-1]]))
-        self.define_matrix(3, np.array([[-1]]))
+    def __init__(self, group):
+        super().__init__("C2v_A2 representation", group)
+        self._define_matrix(0, np.array([[1]]))
+        self._define_matrix(1, np.array([[1]]))
+        self._define_matrix(2, np.array([[-1]]))
+        self._define_matrix(3, np.array([[-1]]))
 
 class C2v_B1_representation(GroupRepresentation):
-    def __init__(self):
-        super().__init__("C2v_B1", C2vGroupAbstract())
-        self.define_matrix(0, np.array([[1]]))
-        self.define_matrix(1, np.array([[-1]]))
-        self.define_matrix(2, np.array([[1]]))
-        self.define_matrix(3, np.array([[-1]]))
+    def __init__(self, group):
+        super().__init__("C2v_B1 representation", group)
+        self._define_matrix(0, np.array([[1]]))
+        self._define_matrix(1, np.array([[-1]]))
+        self._define_matrix(2, np.array([[1]]))
+        self._define_matrix(3, np.array([[-1]]))
 
 class C2v_B2_representation(GroupRepresentation):
-    def __init__(self):
-        super().__init__("C2v_B2", C2vGroupAbstract())
-        self.define_matrix(0, np.array([[1]]))
-        self.define_matrix(1, np.array([[-1]]))
-        self.define_matrix(2, np.array([[-1]]))
-        self.define_matrix(3, np.array([[1]]))
+    def __init__(self, group):
+        super().__init__("C2v_B2 representation", group)
+        self._define_matrix(0, np.array([[1]]))
+        self._define_matrix(1, np.array([[-1]]))
+        self._define_matrix(2, np.array([[-1]]))
+        self._define_matrix(3, np.array([[1]]))
 
 class C3v_A1_representation(GroupRepresentation):
-    def __init__(self):
-        super().__init__("C3v_A1", C3vGroupAbstract())
+    def __init__(self, group):
+        super().__init__("C3v_A1 representation", group)
         for i in range(6):
-            self.define_matrix(i, np.array([[1]]))  # Totally symmetric
+            self._define_matrix(i, np.array([[1]]))  # Totally symmetric
 
 class C3v_A2_representation(GroupRepresentation):
-    def __init__(self):
-        super().__init__("C3v_A2", C3vGroupAbstract())
+    def __init__(self, group):
+        super().__init__("C3v_A2 representation", group)
         # E, C3, C3^2: +1; mirrors: -1
         signs = [1, 1, 1, -1, -1, -1]
         for i, s in enumerate(signs):
-            self.define_matrix(i, np.array([[s]]))
+            self._define_matrix(i, np.array([[s]]))
 
 class C3v_E_representation(GroupRepresentation):
-    def __init__(self):
-        super().__init__("C3v_E", C3vGroupAbstract())
+    def __init__(self, group):
+        super().__init__("C3v_E representation", group)
         sqrt3 = np.sqrt(3)
-        self.define_matrix(0, np.array([[1, 0], [0, 1]]))  # E
-        self.define_matrix(1, np.array([[-0.5, -sqrt3/2], [sqrt3/2, -0.5]]))  # C3
-        self.define_matrix(2, np.array([[-0.5, sqrt3/2], [-sqrt3/2, -0.5]]))  # C3^2
-        self.define_matrix(3, np.array([[1, 0], [0, -1]]))  # σv
-        self.define_matrix(4, np.array([[-0.5, sqrt3/2], [sqrt3/2, 0.5]]))   # σv′
-        self.define_matrix(5, np.array([[-0.5, -sqrt3/2], [-sqrt3/2, 0.5]]))  # σv″
+        self._define_matrix(0, np.array([[1, 0], [0, 1]]))  # E
+        self._define_matrix(1, np.array([[-0.5, -sqrt3 / 2], [sqrt3 / 2, -0.5]]))  # C3
+        self._define_matrix(2, np.array([[-0.5, sqrt3 / 2], [-sqrt3 / 2, -0.5]]))  # C3^2
+        self._define_matrix(3, np.array([[1, 0], [0, -1]]))  # σv
+        self._define_matrix(4, np.array([[-0.5, sqrt3 / 2], [sqrt3 / 2, 0.5]]))   # σv′
+        self._define_matrix(5, np.array([[-0.5, -sqrt3 / 2], [-sqrt3 / 2, 0.5]]))  # σv″
 
 class Cs_A_prime_representation(GroupRepresentation):
-    def __init__(self):
-        super().__init__("Cs_A'", CsGroupAbstract())
-        self.define_matrix(0, np.array([[1]]))  # E
-        self.define_matrix(1, np.array([[1]]))  # σ
+    def __init__(self, group):
+        super().__init__("Cs_A' representation", group)
+        self._define_matrix(0, np.array([[1]]))  # E
+        self._define_matrix(1, np.array([[1]]))  # σ
 
 class Cs_A_double_prime_representation(GroupRepresentation):
-    def __init__(self):
-        super().__init__("Cs_A''", CsGroupAbstract())
-        self.define_matrix(0, np.array([[1]]))   # E
-        self.define_matrix(1, np.array([[-1]]))  # σ
+    def __init__(self, group):
+        super().__init__("Cs_A'' representation", group)
+        self._define_matrix(0, np.array([[1]]))   # E
+        self._define_matrix(1, np.array([[-1]]))  # σ
