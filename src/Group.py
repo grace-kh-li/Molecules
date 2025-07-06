@@ -88,7 +88,7 @@ class GroupRepresentationElement:
             return GroupRepresentationElement(k, m)
 
     def __eq__(self, other):
-        return isinstance(other, GroupRepresentationElement) and self.group == other.group and self.matrix == other.matrix
+        return isinstance(other, GroupRepresentationElement) and self.group == other.group and np.sum(np.absolute(self.matrix - other.matrix)) < 1e-10
 
     def __str__(self):
         return self.name + ": " + str(self.matrix)
@@ -105,6 +105,12 @@ class GroupRepresentation:
                 self.representation_elements = None
         if matrices is None:
             self.representation_elements = [None] * len(self.group.elements)
+
+    def __str__(self):
+        s = ""
+        for e in self.representation_elements:
+            s += str(e) + "\n"
+        return s
 
 
 
@@ -131,8 +137,13 @@ class GroupRepresentation:
                 g_ij = g_i * g_j
                 k = g_ij.group_index
                 rep_k = self.representation_elements[k]
+
                 if rep_k != self.representation_elements[i] * self.representation_elements[j]:
+                    print(g_i)
+                    print(g_j)
+                    print("supposed to be:")
                     print(rep_k)
+                    print("got:")
                     print(self.representation_elements[i] * self.representation_elements[j])
                     return False
 
@@ -142,6 +153,9 @@ class GroupRepresentation:
     def define_matrix(self, i, matrix):
         rep = GroupRepresentationElement(self.group.elements[i], matrix)
         self.representation_elements[i] = rep
+
+    def get_matrix(self, i):
+        return self.representation_elements[i].matrix
 
 
 
@@ -168,8 +182,8 @@ class C3vGroupAbstract(AbstractFiniteGroup):
         elements = [e, c3, c32, s1, s2, s3]
         c3v_table = np.array([
             [0, 1, 2, 3, 4, 5],  # E
-            [1, 2, 0, 5, 3, 4],  # C3
-            [2, 0, 1, 4, 5, 3],  # C3^2
+            [1, 2, 0, 4, 5, 3],  # C3
+            [2, 0, 1,5, 3, 4],  # C3^2
             [3, 5, 4, 0, 2, 1],  # σv
             [4, 3, 5, 1, 0, 2],  # σv′
             [5, 4, 3, 2, 1, 0]  # σv″
@@ -195,3 +209,64 @@ class C2v_A1_representation(GroupRepresentation):
         self.define_matrix(1, np.array([[1]]))
         self.define_matrix(2, np.array([[1]]))
         self.define_matrix(3, np.array([[1]]))
+
+class C2v_A2_representation(GroupRepresentation):
+    def __init__(self):
+        super().__init__("C2v_A1", C2vGroupAbstract())
+        self.define_matrix(0, np.array([[1]]))
+        self.define_matrix(1, np.array([[1]]))
+        self.define_matrix(2, np.array([[-1]]))
+        self.define_matrix(3, np.array([[-1]]))
+
+class C2v_B1_representation(GroupRepresentation):
+    def __init__(self):
+        super().__init__("C2v_B1", C2vGroupAbstract())
+        self.define_matrix(0, np.array([[1]]))
+        self.define_matrix(1, np.array([[-1]]))
+        self.define_matrix(2, np.array([[1]]))
+        self.define_matrix(3, np.array([[-1]]))
+
+class C2v_B2_representation(GroupRepresentation):
+    def __init__(self):
+        super().__init__("C2v_B2", C2vGroupAbstract())
+        self.define_matrix(0, np.array([[1]]))
+        self.define_matrix(1, np.array([[-1]]))
+        self.define_matrix(2, np.array([[-1]]))
+        self.define_matrix(3, np.array([[1]]))
+
+class C3v_A1_representation(GroupRepresentation):
+    def __init__(self):
+        super().__init__("C3v_A1", C3vGroupAbstract())
+        for i in range(6):
+            self.define_matrix(i, np.array([[1]]))  # Totally symmetric
+
+class C3v_A2_representation(GroupRepresentation):
+    def __init__(self):
+        super().__init__("C3v_A2", C3vGroupAbstract())
+        # E, C3, C3^2: +1; mirrors: -1
+        signs = [1, 1, 1, -1, -1, -1]
+        for i, s in enumerate(signs):
+            self.define_matrix(i, np.array([[s]]))
+
+class C3v_E_representation(GroupRepresentation):
+    def __init__(self):
+        super().__init__("C3v_E", C3vGroupAbstract())
+        sqrt3 = np.sqrt(3)
+        self.define_matrix(0, np.array([[1, 0], [0, 1]]))  # E
+        self.define_matrix(1, np.array([[-0.5, -sqrt3/2], [sqrt3/2, -0.5]]))  # C3
+        self.define_matrix(2, np.array([[-0.5, sqrt3/2], [-sqrt3/2, -0.5]]))  # C3^2
+        self.define_matrix(3, np.array([[1, 0], [0, -1]]))  # σv
+        self.define_matrix(4, np.array([[-0.5, sqrt3/2], [sqrt3/2, 0.5]]))   # σv′
+        self.define_matrix(5, np.array([[-0.5, -sqrt3/2], [-sqrt3/2, 0.5]]))  # σv″
+
+class Cs_A_prime_representation(GroupRepresentation):
+    def __init__(self):
+        super().__init__("Cs_A'", CsGroupAbstract())
+        self.define_matrix(0, np.array([[1]]))  # E
+        self.define_matrix(1, np.array([[1]]))  # σ
+
+class Cs_A_double_prime_representation(GroupRepresentation):
+    def __init__(self):
+        super().__init__("Cs_A''", CsGroupAbstract())
+        self.define_matrix(0, np.array([[1]]))   # E
+        self.define_matrix(1, np.array([[-1]]))  # σ
