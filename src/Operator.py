@@ -33,22 +33,22 @@ class Operator:
         return Operator(self.basis, self.matrix / c)
 
     def diagonalize(self):
-        eigenvalues, eigenvectors = sorted_eig(self.matrix)
+        eigenvalues, eigenvectors = self.sorted_eig(self.matrix)
         eigenstates = []
         for i in range(self.basis.dimension):
             v = eigenvectors[:,i]
             eigenstates.append(QuantumState(f"φ_{i}",v, self.basis))
         return eigenvalues, eigenstates
 
-def sorted_eig(A):
-    # Compute eigenvalues and eigenvectors
-    eigvals, eigvecs = np.linalg.eig(A)
+    def sorted_eig(self,A):
+        # Compute eigenvalues and eigenvectors
+        eigvals, eigvecs = np.linalg.eig(A)
 
-    # Get the sorted indices of eigenvalues
-    idx = np.argsort(eigvals)
+        # Get the sorted indices of eigenvalues
+        idx = np.argsort(eigvals)
 
-    # Sort eigenvalues and eigenvectors accordingly
-    eigvals_sorted = eigvals[idx]
-    eigvecs_sorted = eigvecs[:, idx]
+        # Sort eigenvalues and eigenvectors accordingly
+        eigvals_sorted = eigvals[idx]
+        eigvecs_sorted = eigvecs[:, idx]
 
-    return eigvals_sorted, eigvecs_sorted
+        return eigvals_sorted, eigvecs_sorted
