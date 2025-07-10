@@ -9,7 +9,7 @@ class BasisVector:
         if self.basis != other.states:
             raise ValueError("Dot product between basis vectors is not defined")
         else:
-            if self.label == other.label:
+            if self.label == other.name:
                 return 1
             else:
                 return 0
@@ -21,7 +21,7 @@ class BasisVector:
         return str(self)
 
     def __eq__(self, other):
-        return self.label == other.label
+        return self.label == other.name
 
     def copy(self):
         return BasisVector(self.label)
@@ -58,7 +58,7 @@ class OrthogonalBasis:
         tensor_basis = []
         for b1 in basis1:
             for b2 in basis2:
-                label = b1.label + ", " + b2.label
+                label = b1.name + ", " + b2.name
                 tensor_basis.append(BasisVector(label))
         return OrthogonalBasis(tensor_basis, name=basis1.name + " x " + basis2.name)
 

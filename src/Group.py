@@ -2,15 +2,16 @@ import numpy as np
 
 
 class GroupElement:
-    def __init__(self, name, notes=""):
+    def __init__(self, name, faithful_rep, notes=""):
         self.element_name = name
+        self.faithful_rep = faithful_rep
         self.group = None
         self.group_index = 0
         self.notes = ""
 
     def __eq__(self, other):
         """ Two group elements are equal if they have the same label, and belong to the same group """
-        return isinstance(other, GroupElement) and self.element_name == other.element_name and self.group == other.group
+        return np.sum(np.absolute(self.faithful_rep - other.faithful_rep)) < 1e-6
 
     def __mul__(self, other):
         """ g1(self) * g2(other) """
@@ -33,11 +34,10 @@ class GroupElement:
         return self.notes
 
 class AbstractFiniteGroup:
-    def __init__(self, name, elements, identity, operation_table):
+    def __init__(self, name, elements, identity):
         self.group_name = name
         self.elements = elements
         self.identity = identity
-        self.operation_table = operation_table
         for i, element in enumerate(elements):
             element.group = self
             element.group_index = i
@@ -52,6 +52,9 @@ class AbstractFiniteGroup:
 
     def __repr__(self):
         return str(self)
+
+    def __getitem__(self, i):
+        return self.elements[i]
 
     def __eq__(self, other):
         return isinstance(other, AbstractFiniteGroup) and self.group_name == other.group_name
@@ -70,8 +73,12 @@ class AbstractFiniteGroup:
         elif g1.group != self or g2.group != self:
             raise ValueError("Cannot multiply objects that are not group elements.")
         else:
-            i_mul = self.operation_table[g1.group_index, g2.group_index]
-            return self.elements[i_mul]
+            mat = g1.faithful_rep @ g2.faithful_rep
+            for e in self.elements:
+                if np.sum(np.absolute(e.faithful_rep - mat)) < 1e-6:
+                    return e
+            print(mat)
+            raise ValueError("Failed to identify the product.")
 
     def get_element(self, i):
         return self.elements[i]
@@ -117,7 +124,7 @@ class FiniteGroupRepresentation:
                 print("Matrices given are not a valid representation of the group. Please redefine.")
                 self.representation_elements = None
         if matrices is None:
-            self.representation_elements = [None] * len(self.group.basis_elements)
+            self.representation_elements = [None] * len(self.group.elements)
 
     def __str__(self):
         s = self.name + "\n"
@@ -128,13 +135,16 @@ class FiniteGroupRepresentation:
     def __repr__(self):
         return str(self)
 
+    def __getitem__(self, i):
+        return self.representation_elements[i]
+
     def __iter__(self):
         return iter(self.representation_elements)
 
 
 
     def check_validity(self):
-        if self.representation_elements is None or len(self.representation_elements) != len(self.group.basis_elements):
+        if self.representation_elements is None or len(self.representation_elements) != len(self.group.elements):
             print("Representation of group elements does not match group elements.")
             return False
         for m in self.representation_elements:
@@ -170,34 +180,36 @@ class FiniteGroupRepresentation:
 
 
     def _define_matrix(self, i, matrix):
-        rep = FiniteGroupRepresentationElement(self.group.basis_elements[i], matrix)
+        rep = FiniteGroupRepresentationElement(self.group.elements[i], matrix)
         self.representation_elements[i] = rep
 
     def get_matrix(self, i):
         return self.representation_elements[i].matrix
 
+
 class LieAlgebraElement:
-    def __init__(self, label, faithful_rep):
-        self.label = label
-        self.faithful_rep = faithful_rep
+    """ Lie algebra element, defined by a matrix from a faithful representation. """
+    def __init__(self, name, matrix):
+        self.name = name
+        self.matrix = matrix
         self.Lie_algebra = None
 
     def __eq__(self, other):
-        return isinstance(other, LieAlgebraElement) and np.sum(np.absolute(self.faithful_rep - other.faithful_rep)) < 1e-10 and self.Lie_algebra == other.Lie_algebra
+        return isinstance(other, LieAlgebraElement) and np.sum(np.absolute(self.matrix - other.matrix)) < 1e-10 and self.Lie_algebra == other.Lie_algebra
 
     def __str__(self):
-        return self.label + ": \n" + str(self.faithful_rep)
+        return self.name + ": \n" + str(self.matrix)
 
     def __repr__(self):
         return str(self)
 
     def __mul__(self, c):
-        g1 = LieAlgebraElement(f"{c:.2f}{self.label}", self.faithful_rep * c)
+        g1 = LieAlgebraElement(f"{c:.2f}{self.name}", self.matrix * c)
         g1.Lie_algebra = self.Lie_algebra
         return g1
 
     def __add__(self, other):
-        g1 = LieAlgebraElement(f"{self.label} + {other.label}", self.faithful_rep + other.faithful_rep)
+        g1 = LieAlgebraElement(f"{self.name} + {other.name}", self.matrix + other.matrix)
         g1.Lie_algebra = self.Lie_algebra
         return g1
 
@@ -221,7 +233,7 @@ class LieAlgebra:
     def Lie_bracket(self, g1, g2):
         if not g1.Lie_algebra == g2.Lie_algebra == self:
             raise ValueError("Lie-algebra mismatch.")
-        g3 = LieAlgebraElement(f"[{g1.name},{g2.name}]", g1.faithful_rep * g2.faithful_rep - g2.faithful_rep * g1.faithful_rep)
+        g3 = LieAlgebraElement(f"[{g1.name},{g2.name}]", g1.matrix * g2.matrix - g2.matrix * g1.matrix)
         g3.Lie_algebra = self
 
 
@@ -231,7 +243,8 @@ class AbstractLieGroup:
     Global topology information must be given to fully define the Lie group (e.g. to differentiate
     SU(2) and SO(3)). But for our purpose, this is OK. """
 
-    def __init__(self, name,  Lie_algebra, discrete_elements):
+    def __init__(self, name,  Lie_algebra, discrete_elements, operation_table):
+        """ The matrix representation that the Lie algebra is defined by must have the same dimensionality as the discrete elements."""
         self.name = name
         self.discrete_elements = discrete_elements
         self.Lie_algebra = Lie_algebra
@@ -243,46 +256,33 @@ class AbstractLieGroup:
 """ Define some finite groups """
 class C2vGroupAbstract(AbstractFiniteGroup):
     def __init__(self):
-        e = GroupElement("e", notes="identity")
-        c2 = GroupElement("C_2", notes="180 degree rotation around z-axis")
-        xz = GroupElement("σ_v(xz)", notes="reflection about xz plane")
-        yz = GroupElement("σ_v(yz)", notes="reflection about yz plane")
+        e = GroupElement("e",np.array([[1,0],[0,1]]), notes="identity")
+        c2 = GroupElement("C_2",np.array([[-1,0],[0,-1]]),  notes="180 degree rotation around z-axis")
+        xz = GroupElement("σ_v(xz)", np.array([[1,0],[0,-1]]), notes="reflection about xz plane")
+        yz = GroupElement("σ_v(yz)", np.array([[-1,0],[0,1]]), notes="reflection about yz plane")
         elements = [e, c2, xz, yz]
-        table = np.array([[0,1,2,3],[1,0,3,2],[2,3,0,1],[3,2,1,0]])
-        super().__init__("C2v", elements, e, table)
+        super().__init__("C2v", elements, e)
         self.irreps = (C2v_A1_representation(self), C2v_A2_representation(self), C2v_B1_representation(self), C2v_B2_representation(self))
 
 
 class C3vGroupAbstract(AbstractFiniteGroup):
     def __init__(self):
-        e = GroupElement("e", notes="identity")
-        c3 = GroupElement("C_3", notes="120 degree rotation around z-axis")
-        c32 = GroupElement("(C_3)^2", notes="240 degree rotation around z-axis")
-        s1 = GroupElement("σ_v", notes="reflection about plane 1")
-        s2 = GroupElement("σ_v'", notes="reflection about plane 2")
-        s3 = GroupElement("σ_v''", notes="reflection about plane 3")
+        e = GroupElement("e",np.array([[1,0],[0,1]]),  notes="identity")
+        c3 = GroupElement("C_3", np.array([[-1/2,-np.sqrt(3)/2],[np.sqrt(3)/2,-1/2]]), notes="120 degree rotation around z-axis")
+        c32 = GroupElement("(C_3)^2", np.array([[-1/2,np.sqrt(3)/2],[-np.sqrt(3)/2,-1/2]]), notes="240 degree rotation around z-axis")
+        s1 = GroupElement("σ_v", np.array([[-1,0],[0,1]]), notes="reflection about plane 1")
+        s2 = GroupElement("σ_v'", np.array([[1/2,np.sqrt(3)/2],[np.sqrt(3)/2,-1/2]]), notes="reflection about plane 2")
+        s3 = GroupElement("σ_v''", np.array([[1/2,-np.sqrt(3)/2],[-np.sqrt(3)/2,-1/2]]), notes="reflection about plane 3")
         elements = [e, c3, c32, s1, s2, s3]
-        c3v_table = np.array([
-            [0, 1, 2, 3, 4, 5],  # E
-            [1, 2, 0, 4, 5, 3],  # C3
-            [2, 0, 1,5, 3, 4],  # C3^2
-            [3, 5, 4, 0, 2, 1],  # σv
-            [4, 3, 5, 1, 0, 2],  # σv′
-            [5, 4, 3, 2, 1, 0]  # σv″
-        ])
-        super().__init__("C3v", elements, e, c3v_table)
+        super().__init__("C3v", elements, e)
         self.irreps = (C3v_A1_representation(self), C3v_A2_representation(self), C3v_E_representation(self))
 
 class CsGroupAbstract(AbstractFiniteGroup):
     def __init__(self):
-        e = GroupElement("e", notes="identity")
-        s = GroupElement("s", notes="reflection")
+        e = GroupElement("e", np.array([[1]]), notes="identity")
+        s = GroupElement("s", [[-1]], notes="reflection")
         elements = [e,s]
-        cs_table = np.array([
-            [0, 1],  # E
-            [1, 0]  # σ
-        ])
-        super().__init__("Cs", elements, e, cs_table)
+        super().__init__("Cs", elements, e)
         self.irreps = (Cs_A_prime_representation(self), Cs_A_prime_representation(self))
 
 
@@ -339,9 +339,9 @@ class C3v_E_representation(FiniteGroupRepresentation):
         self._define_matrix(0, np.array([[1, 0], [0, 1]]))  # E
         self._define_matrix(1, np.array([[-0.5, -sqrt3 / 2], [sqrt3 / 2, -0.5]]))  # C3
         self._define_matrix(2, np.array([[-0.5, sqrt3 / 2], [-sqrt3 / 2, -0.5]]))  # C3^2
-        self._define_matrix(3, np.array([[1, 0], [0, -1]]))  # σv
-        self._define_matrix(4, np.array([[-0.5, sqrt3 / 2], [sqrt3 / 2, 0.5]]))   # σv′
-        self._define_matrix(5, np.array([[-0.5, -sqrt3 / 2], [-sqrt3 / 2, 0.5]]))  # σv″
+        self._define_matrix(3, np.array([[-1, 0], [0, 1]]))  # σv
+        self._define_matrix(4, np.array([[0.5, sqrt3 / 2], [sqrt3 / 2, -0.5]]))   # σv′
+        self._define_matrix(5, np.array([[0.5, -sqrt3 / 2], [-sqrt3 / 2, -0.5]]))  # σv″
 
 class Cs_A_prime_representation(FiniteGroupRepresentation):
     def __init__(self, group):
