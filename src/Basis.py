@@ -144,9 +144,15 @@ class QuantumState:
         s = self.name + " = "
         for i, b in enumerate(self.non_zero_basis):
             if abs(np.real(self.non_zero_coeffs[i])) < 1e-9:
-                s += "{:.2f}j {} + ".format(np.imag(self.non_zero_coeffs[i]), str(b))
+                if abs(np.imag(self.non_zero_coeffs[i])) < 0.01:
+                    s += "{:.1e}j {} + ".format(np.imag(self.non_zero_coeffs[i]), str(b))
+                else:
+                    s += "{:.2f}j {} + ".format(np.imag(self.non_zero_coeffs[i]), str(b))
             elif abs(np.imag(self.non_zero_coeffs[i])) < 1e-9:
-                s += "{:.2f} {} + ".format(np.real(self.non_zero_coeffs[i]), str(b))
+                if abs(np.real(self.non_zero_coeffs[i])) < 0.01:
+                    s += "{:.1e} {} + ".format(np.real(self.non_zero_coeffs[i]), str(b))
+                else:
+                    s += "{:.2f} {} + ".format(np.real(self.non_zero_coeffs[i]), str(b))
         return s[:-2]
 
     def _get_sorted_by_magnitude(self):
