@@ -27,6 +27,20 @@ class STM_RotationalBasis(OrthogonalBasis):
                     basis_vectors.append(STM_RotationalState(R, k, m))
         super().__init__(basis_vectors)
 
+    def get_R_subspace(self, R):
+        out = []
+        for b in self.basis_vectors:
+            if b.R == R:
+                out.append(b)
+        return out
+
+    def get_k_subspace(self, k):
+        out = []
+        for b in self.basis_vectors:
+            if b.k == k or b.k == -k:
+                out.append(b)
+        return out
+
 class STM_RaisingOperator(Operator):
     def __init__(self, basis:STM_RotationalBasis):
         matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
@@ -68,7 +82,7 @@ class Linear_RotationalState(STM_RotationalState):
         super().__init__(R, 0, m)
 
 class ATM_RotationalState(BasisVector):
-    def __init__(self, R, ka, kc, m):
+    def __init__(self, R, ka, kc, m, STM_decomp=None):
         assert R % 1 == 0  # make sure R, k, m are integers
         assert ka % 1 == 0
         assert kc % 1 == 0
@@ -83,3 +97,7 @@ class ATM_RotationalState(BasisVector):
         self.ka = ka
         self.kc = kc
         self.m_R = m
+        self.STM_decomp = STM_decomp # a quantum state in STM basis, representing the physical composition of this ATM state.
+
+    def get_STM_decomp(self):
+        return self.STM_decomp

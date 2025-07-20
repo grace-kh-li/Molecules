@@ -47,6 +47,9 @@ class OrthogonalBasis:
     def __iter__(self):
         return iter(self.basis_vectors)
 
+    def __getitem__(self, i):
+        return self.basis_vectors[i]
+
     def __mul__(self, other):
         return OrthogonalBasis.tensor_product(self, other)
 
@@ -90,12 +93,24 @@ class HilbertSpace:
 
 
 class QuantumState:
-    def __init__(self, name, coeff, basis, Hilbert_space=None):
+    def __init__(self, name, coeff, basis, sorted=False, Hilbert_space=None):
         self.coeff = np.array(coeff)
         assert self.coeff.shape[0] == basis.dimension
         self.basis = basis
         self.name = name
         self.Hilbert_space = Hilbert_space
+
+        self.non_zero_coeffs = []
+        self.non_zero_basis = []
+        self.sorted = sorted
+
+        for i, b in enumerate(self.basis):
+            if np.abs(self.coeff[i]) > 1e-9:
+                self.non_zero_basis.append(b)
+                self.non_zero_coeffs.append(coeff[i])
+
+        if sorted:
+            self.non_zero_coeffs, self.non_zero_basis = self._get_sorted_by_magnitude()
 
     def braket(self, other):
         """<self|other>"""
@@ -127,17 +142,42 @@ class QuantumState:
 
     def __str__(self):
         s = self.name + " = "
-        for i, b in enumerate(self.basis):
-            if np.abs(self.coeff[i]) < 1e-9:
-                continue
-            if abs(np.real(self.coeff[i])) < 1e-9:
-                s += "{:.2f}j {} + ".format(np.imag(self.coeff[i]), str(b))
-            elif abs(np.imag(self.coeff[i])) < 1e-9:
-                s += "{:.2f} {} + ".format(np.real(self.coeff[i]), str(b))
+        for i, b in enumerate(self.non_zero_basis):
+            if abs(np.real(self.non_zero_coeffs[i])) < 1e-9:
+                s += "{:.2f}j {} + ".format(np.imag(self.non_zero_coeffs[i]), str(b))
+            elif abs(np.imag(self.non_zero_coeffs[i])) < 1e-9:
+                s += "{:.2f} {} + ".format(np.real(self.non_zero_coeffs[i]), str(b))
         return s[:-2]
+
+    def _get_sorted_by_magnitude(self):
+        # Pair each coefficient with its corresponding basis element
+        paired = list(zip(self.non_zero_coeffs, self.non_zero_basis))
+
+        # Sort based on the magnitude (norm) of the complex coefficient
+        sorted_pairs = sorted(paired, key=lambda pair: -abs(pair[0]))
+
+        # Unzip the sorted pairs back into two separate lists
+        sorted_coeffs, sorted_basis = zip(*sorted_pairs) if sorted_pairs else ([], [])
+
+        return list(sorted_coeffs), list(sorted_basis)
 
     def __repr__(self):
         return str(self)
 
     def norm(self):
         return np.linalg.norm(self.coeff)
+
+    def __getitem__(self, i):
+        return self.non_zero_basis[i]
+
+    def __contains__(self, basis_vector):
+        if not isinstance(basis_vector, BasisVector):
+            return False
+        return basis_vector in self.non_zero_basis
+
+    def __iter__(self):
+        return iter(self.non_zero_basis)
+
+    def sort(self):
+        """ Sort the printed state based on the magnitude of the basis vectors. """
+        self.non_zero_coeffs, self.non_zero_basis = self._get_sorted_by_magnitude()
