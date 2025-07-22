@@ -8,12 +8,16 @@ class Group:
         self.group_name = name
         self.discrete_elements = discrete_elements
         self.identity = identity
+        self.irreps = None # need to be set manually
         for i, element in enumerate(discrete_elements):
             element.group = self
             element.group_index = i
 
     def __repr__(self):
         return str(self)
+
+    def __str__(self):
+        return self.name
 
     def __eq__(self, other):
         return type(self) == type(other) and self.name == other.name
@@ -46,6 +50,47 @@ class Representation:
     def __iter__(self):
         return iter(self.representation_elements)
 
+    def __eq__(self, other):
+        out = True
+        for i, e in enumerate(self.representation_elements):
+            out = out and (self[i] == other[i])
+        return out
+
+    def __mul__(self, other):
+        r = Representation(f"{self.name} x {other.name}", self.group, None)
+        for i, g in enumerate(self.group):
+            r._define_matrix(i, np.kron(self.representation_elements[i].matrix,
+                                           other.representation_elements[i].matrix))
+        if self.group.irreps is not None:
+            for irrep in self.group.irreps:
+                if irrep == r:
+                    return irrep
+        return r
+
+    def __add__(self, other):
+        r = Representation(f"{self.name} + {other.name}", self.group, None)
+        for i, g in enumerate(self.group):
+            r._define_matrix(i, direct_sum(self.representation_elements[i].matrix, other.representation_elements[i].matrix))
+        return r
+
+def direct_sum(A, B):
+    """Compute the direct sum of two matrices A and B."""
+    A = np.array(A)
+    B = np.array(B)
+
+    rows_A, cols_A = A.shape
+    rows_B, cols_B = B.shape
+
+    # Create a zero matrix of appropriate shape
+    result = np.zeros((rows_A + rows_B, cols_A + cols_B), dtype=A.dtype)
+
+    # Place A in the top-left block
+    result[:rows_A, :cols_A] = A
+
+    # Place B in the bottom-right block
+    result[rows_A:, cols_A:] = B
+
+    return result
 
 class GroupElement:
     def __init__(self, name, faithful_rep, notes=""):
@@ -140,7 +185,7 @@ class RepresentationElement:
             return RepresentationElement(k, m)
 
     def __eq__(self, other):
-        return isinstance(other, RepresentationElement) and self.group == other.group and np.sum(np.absolute(self.matrix - other.matrix)) < 1e-10
+        return isinstance(other, RepresentationElement) and np.sum(np.absolute(self.matrix - other.matrix)) < 1e-8
 
     def __str__(self):
         return self.name + ": " + str(self.matrix)
@@ -156,10 +201,6 @@ class FiniteGroupRepresentation(Representation):
             if not self.check_validity():
                 print("Matrices given are not a valid representation of the group. Please redefine.")
                 self.representation_elements = None
-
-
-
-
 
     def check_validity(self):
         if self.representation_elements is None or len(self.representation_elements) != len(self.group.discrete_elements):
@@ -195,7 +236,6 @@ class FiniteGroupRepresentation(Representation):
                     return False
 
         return True
-
 
     def get_matrix(self, i):
         return self.representation_elements[i].matrix
@@ -275,7 +315,7 @@ class LieGroup(Group):
 
 class LieAlgebraRepresentationElement:
     def __init__(self, element, matrix):
-        self.group_element = element
+        self.algebra_element = element
         self.matrix = matrix
         self.name = element.name
         self.Lie_algebra = element.Lie_algebra
@@ -290,6 +330,8 @@ class LieAlgebraRepresentationElement:
 
     def __repr__(self):
         return str(self)
+
+
 
 class LieGroupRepresentation(Representation):
     def __init__(self, name, group, algebra_reps=None, discrete_reps=None):
@@ -307,9 +349,42 @@ class LieGroupRepresentation(Representation):
             s += str(e) + "\n"
         return s
 
+    def __eq__(self, other):
+        out = True
+        for i, e in enumerate(self.representation_elements):
+            out = out and (self[i] == other[i])
+        for i, e in enumerate(self.algebra_rep_elements):
+            out = out and (e == other[i])
+        return out
+
+    def __mul__(self, other):
+        rep = LieGroupRepresentation(f"{self.name} x {other.name}")
+        for i, r in enumerate(self.algebra_rep_elements):
+            rep._define_Lie_algebra_matrix(i, np.kron(r.matrix, other.algebra_rep_elements[i].matrix))
+
+        for i, r in enumerate(self.representation_elements):
+            rep._define_matrix(i, np.kron(r.matrix, other.representation_elements[i].matrix))
+
+        if self.group.irreps is not None:
+            for irrep in self.group.irreps:
+                if irrep == rep:
+                    return irrep
+        return rep
+
+    def __add__(self, other):
+        rep = LieGroupRepresentation(f"{self.name} x {other.name}", self.group)
+        for i, r in enumerate(self.algebra_rep_elements):
+            rep._define_Lie_algebra_matrix(i, direct_sum(r.matrix, other.algebra_rep_elements[i].matrix))
+
+        for i, r in enumerate(self.representation_elements):
+            rep._define_matrix(i, direct_sum(r.matrix, other.representation_elements[i].matrix))
+
+        return rep
+
     def _define_Lie_algebra_matrix(self, i, mat):
         r = LieAlgebraRepresentationElement(self.group.Lie_algebra[i], mat)
         self.algebra_rep_elements[i] = r
+
 
 
 
