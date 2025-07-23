@@ -1,4 +1,4 @@
-from Basis import *
+from src.quantum_mechanics.Basis import *
 
 class Operator:
     def __init__(self, basis, matrix):

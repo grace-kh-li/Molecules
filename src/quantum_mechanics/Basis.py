@@ -61,7 +61,7 @@ class OrthogonalBasis:
         tensor_basis = []
         for b1 in basis1:
             for b2 in basis2:
-                label = b1.name + ", " + b2.name
+                label = b1.label + ", " + b2.label
                 tensor_basis.append(BasisVector(label))
         return OrthogonalBasis(tensor_basis, name=basis1.name + " x " + basis2.name)
 

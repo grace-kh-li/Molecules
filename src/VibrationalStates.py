@@ -1,15 +1,21 @@
-from Basis import *
+from src.quantum_mechanics.Basis import *
 
 class VibrationalState(BasisVector):
-    def __init__(self, mode, n_excitation, group=None, irrep=None):
-        self.mode = mode
-        self.n_excitation = n_excitation
+    def __init__(self, n_excitation_list, group=None, irrep=None):
+        self.n_modes = len(n_excitation_list)
+        self.excitations = n_excitation_list
         self.irrep = irrep
         self.group = group
-        super().__init__(f"{mode}_{n_excitation}")
-
-class lStates(VibrationalState):
-    def __init__(self, mode, n_excitation, l, group=None, irrep=None):
-        super().__init__(mode, n_excitation, group, irrep)
-        self.l = l
-        assert n_excitation % 2 == l % 2
+        label = ""
+        if self.n_modes == 1: # diatomic
+            label = "v={}".format(self.excitations[0])
+        elif self.n_modes == 3: # linear triatomic
+            for n in self.excitations:
+                label += str(n)
+        else:
+            for i, n in enumerate(self.excitations):
+                if n > 0:
+                    label += f"{i}_n "
+            if label == "":
+                label = "v=0"
+        super().__init__(label)

@@ -1,5 +1,4 @@
-from Basis import *
-from Operator import *
+from src.quantum_mechanics.Operator import *
 
 class STM_RotationalState(BasisVector):
     def __init__(self, R, k, m):
@@ -9,7 +8,7 @@ class STM_RotationalState(BasisVector):
         assert R >= 0
         assert -R <= k <= R
         assert -R <= m <= R
-        super().__init__(f"R={R}, k={k}, m={m}")
+        super().__init__(f"R={R}, k={k}, mR={m}")
         self.R = R
         self.k = k
         self.m_R = m
