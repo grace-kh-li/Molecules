@@ -4,54 +4,52 @@ from VibrationalStates import *
 from RotationalStates import *
 from AngularMomentum import *
 
-
-class HundsCaseB_State(AngularMomentumState):
-    def __init__(self, N,k,S,J,m):
-        self.N = N
-        self.k = k
+class HundsCaseA_State(AngularMomentumState):
+    def __init__(self, S, Sigma,J,Omega,m):
         self.S = S
+        self.Sigma = Sigma
         self.J = J
+        self.Omega = Omega
         self.m = m
-        super().__init__(J, m, J_symbol="J", m_symbol="m", other_quantum_numbers={"N":N,"k":k, "S":S})
+        self.k = self.Omega - self.Sigma
 
-class HundsCaseB_Basis(AngularMomentumBasis):
-    def __init__(self, N_range, k_range, S_range, J_range, m_range):
+        super().__init__(J, m, J_symbol="J", m_symbol="m", other_quantum_numbers={"S":S,"Σ":Sigma,"Ω":Omega})
+
+class HundsCaseA_Basis(AngularMomentumBasis):
+    def __init__(self, S_range, Sigma_range,J_range,Omega_range,m_range):
         vectors = []
-        for N in range(N_range[0], N_range[1] + 1):
-            for k in range(-N, N + 1):
-                if k_range[0] <= abs(k) <= k_range[1]:
-                    S = S_range[0]
-                    while S <= S_range[1]:
-                        J = max(N, S) - min(N, S)
-                        while J <= N + S:
-                            if J_range[0] <= J <= J_range[1]:
+        S = S_range[0]
+        while S <= S_range[1]:
+            Sigma = -S
+            while Sigma <= S:
+                if Sigma_range[0] <= abs(Sigma) <= Sigma_range[1]:
+                    J = J_range[0]
+                    while J <= J_range[1]:
+                        P = -J
+                        while P <= J:
+                            if Omega_range[0] <= abs(P) <= Omega_range[1]:
                                 m = -J
                                 while m <= J:
                                     if m_range[0] <= m <= m_range[1]:
-                                        vectors.append(HundsCaseB_State(N, k, S, J, m))
+                                        vectors.append(HundsCaseA_State(S, Sigma, J, P, m))
                                     m += 1
-                            J += 1
-                        S += 1
-        super().__init__(vectors, "Hund's case B Basis")
-
-    def get_N_states(self, N):
-        out = []
-        for b in self.basis_vectors:
-            if b.N == N:
-                out.append(b)
-        return out
-
-    def get_k_states(self, k):
-        out = []
-        for b in self.basis_vectors:
-            if b.k == k:
-                out.append(b)
-        return out
+                            P += 1
+                        J += 1
+                Sigma += 1
+            S += 1
+        super().__init__(vectors, "Hund's case A basis, without nuclear spin")
 
     def get_S_states(self, S):
         out = []
         for b in self.basis_vectors:
             if b.S == S:
+                out.append(b)
+        return out
+
+    def get_Sigma_states(self, Sigma):
+        out = []
+        for b in self.basis_vectors:
+            if abs(b.Sigma) == Sigma:
                 out.append(b)
         return out
 
@@ -62,6 +60,13 @@ class HundsCaseB_Basis(AngularMomentumBasis):
                 out.append(b)
         return out
 
+    def get_Omega_states(self, Omega):
+        out = []
+        for b in self.basis_vectors:
+            if abs(b.Omega) == Omega:
+                out.append(b)
+        return out
+
     def get_m_states(self, m):
         out = []
         for b in self.basis_vectors:
@@ -69,24 +74,25 @@ class HundsCaseB_Basis(AngularMomentumBasis):
                 out.append(b)
         return out
 
-class HundsCaseB_Basis_with_NS(AngularMomentumBasis):
-    def __init__(self, N_range, k_range, S_range, J_range,I_range, F_range, m_range):
+
+class HundsCaseA_Basis_with_NS(AngularMomentumBasis):
+    def __init__(self, S_range, Sigma_range,J_range,Omega_range,I_range,F_range,m_range):
         b_ns = NuclearSpinBasis(I_range, [-I_range[1], I_range[1]])
-        b_B = HundsCaseB_Basis(N_range, k_range, S_range, J_range, [-J_range[1],J_range[1]])
+        b_B = HundsCaseA_Basis(S_range, Sigma_range,J_range,Omega_range,[-J_range[1],J_range[1]])
         product = b_ns * b_B
         vectors = []
         for b in product.basis_vectors:
             if m_range[0] <= b.m_total <= m_range[1] and F_range[0] <= b.J_total <= F_range[1]:
                 b.F = b.J_total
                 b.J = b.other_quantum_numbers["J"]
-                b.N = b.other_quantum_numbers["N"]
-                b.k = b.other_quantum_numbers["k"]
+                b.Omega = b.other_quantum_numbers["Ω"]
+                b.Sigma = b.other_quantum_numbers["Σ"]
                 b.S = b.other_quantum_numbers["S"]
                 b.I = b.other_quantum_numbers["I"]
                 b.m = b.m_total
                 b.rename_symbols("F","mF")
                 vectors.append(b)
-        super().__init__(vectors, "Hund's case B Basis with nuclear spin")
+        super().__init__(vectors, "Hund's case A Basis with nuclear spin")
 
     def get_I_states(self, I):
         out = []

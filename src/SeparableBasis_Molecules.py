@@ -2,7 +2,7 @@ from src.quantum_mechanics.Basis import *
 from ElectronicStates import *
 from VibrationalStates import *
 from RotationalStates import *
-from SpinStates import *
+from AngularMomentum import *
 
 class SeparableBasis(OrthogonalBasis):
     def __init__(self, e_basis, v_basis, r_basis, es_basis):
