@@ -4,6 +4,7 @@ class BasisVector:
     def __init__(self, label):
         self.label = label
         self.basis = None
+        self.tensor_components = [self]
 
     def dot(self, other):
         if self.basis != other.states:
@@ -33,6 +34,7 @@ class OrthogonalBasis:
         for b in basis_vectors:
             b.states = self
         self.dimension = len(basis_vectors)
+        self.tensor_components = [self]
 
     def __str__(self):
         s = self.name + " = \n{"
@@ -40,6 +42,9 @@ class OrthogonalBasis:
             s += str(b) + ", \n "
         s = s[:-4] + " }"
         return s
+
+    def __len__(self):
+        return len(self.basis_vectors)
 
     def __repr__(self):
         return str(self)
@@ -51,19 +56,19 @@ class OrthogonalBasis:
         return self.basis_vectors[i]
 
     def __mul__(self, other):
-        return OrthogonalBasis.tensor_product(self, other)
+        tensor_basis = []
+        for b1 in self:
+            for b2 in other:
+                label = b1.label + ", " + b2.label
+                b3 = BasisVector(label)
+                b3.tensor_components = b1.tensor_components + b2.tensor_components
+                tensor_basis.append(b3)
+        b = OrthogonalBasis(tensor_basis, name=self.name + " x " + other.name)
+        b.tensor_components = self.tensor_components + other.tensor_components
+        return b
 
     def __add__(self, other):
         return OrthogonalBasis.direct_sum(self, other)
-
-    @staticmethod
-    def tensor_product(basis1, basis2):
-        tensor_basis = []
-        for b1 in basis1:
-            for b2 in basis2:
-                label = b1.label + ", " + b2.label
-                tensor_basis.append(BasisVector(label))
-        return OrthogonalBasis(tensor_basis, name=basis1.name + " x " + basis2.name)
 
     @staticmethod
     def direct_sum(basis1, basis2):

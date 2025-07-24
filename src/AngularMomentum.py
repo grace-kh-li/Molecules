@@ -26,7 +26,10 @@ class AngularMomentumState(BasisVector):
     def __str__(self):
         s = "|"
         for qn in self.other_quantum_numbers:
-            s += f"{qn}={self.other_quantum_numbers[qn]}, "
+            if qn == "other":
+                s += f"{self.other_quantum_numbers[qn]}, "
+            else:
+                s += f"{qn}={self.other_quantum_numbers[qn]}, "
         s += f"{self.J_symbol}={self.J_total}, {self.m_symbol}={self.m_total}>"
         return s
 
@@ -48,6 +51,18 @@ class AngularMomentumBasis(OrthogonalBasis):
 
     def __mul__(self, other):
         if isinstance(other, AngularMomentumBasis):
+            # check that the angular momentum spaces are have the correct dimension
+            for qn1 in self.states_sorted:
+                for J in self.states_sorted[qn1]:
+                    if not len(self.states_sorted[qn1][J]) == 2 * J + 1:
+                        print(f"Warning: Angular momentum space of {self} is incomplete. Returning normal tensor product.")
+                        return super().__mul__(other)
+            for qn2 in other.states_sorted:
+                for J in other.states_sorted[qn2]:
+                    if not len(other.states_sorted[qn2][J]) == 2 * J + 1:
+                        print(f"Warning: Angular momentum space of {other} is incomplete. Returning normal tensor product.")
+                        return super().__mul__(other)
+
             vectors = []
             for qn1 in self.states_sorted:
                 J1_states_dict = self.states_sorted[qn1]
@@ -64,12 +79,32 @@ class AngularMomentumBasis(OrthogonalBasis):
                                 m = -F
                                 while m <= F:
                                     new_qn = {**qn1_dict, **qn2_dict, J1_symbol: J1, J2_symbol: J2}
-                                    vectors.append(AngularMomentumState(F, m, other_quantum_numbers= new_qn))
+                                    v = AngularMomentumState(F, m, other_quantum_numbers= new_qn)
+                                    vectors.append(v)
+                                    for qn in new_qn:
+                                        setattr(v, qn, new_qn[qn])
                                     m += 1
                                 F += 1
             return AngularMomentumBasis(vectors, f"{self.name} x {other.name}")
         else:
-            return super().__mul__(other)
+            tensor_basis = []
+            for b1 in self:
+                for b2 in other:
+                    new_qn = {**b1.other_quantum_numbers, "other": b2.label}
+                    v = AngularMomentumState(b1.J_total, b1.m_total, b1.J_symbol, b1.m_symbol, other_quantum_numbers=new_qn)
+                    tensor_basis.append(v)
+                    for qn in new_qn:
+                        setattr(v, qn, new_qn[qn])
+                    setattr(v, b1.J_symbol, b1.J_total)
+                    setattr(v, b1.m_symbol, b1.m_total)
+            return AngularMomentumBasis(tensor_basis, name=other.name + " x " + self.name)
+
+    def rename_symbols(self, J, m):
+        if len(self.basis_vectors) > 0 and isinstance(self.basis_vectors[0], AngularMomentumState):
+            for b in self.basis_vectors:
+                b.rename_symbols(J, m)
+
+
 
 class ElectronicSpinState(AngularMomentumState):
     def __init__(self, S, ms):
@@ -84,7 +119,7 @@ class NuclearSpinState(AngularMomentumState):
         super().__init__(I, mI, "I", "mI")
 
 class ElectronicSpinBasis(AngularMomentumBasis):
-    def __init__(self, S_range, ms_range):
+    def __init__(self, S_range, ms_range=(-100,100)):
         vectors = []
         S = S_range[0]
         while S <= S_range[1]:
@@ -97,7 +132,7 @@ class ElectronicSpinBasis(AngularMomentumBasis):
         super().__init__(vectors,"ES basis")
 
 class NuclearSpinBasis(AngularMomentumBasis):
-    def __init__(self, I_range, mI_range):
+    def __init__(self, I_range, mI_range=(-100,100)):
         vectors = []
         I = I_range[0]
         while I <= I_range[1]:

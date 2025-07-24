@@ -16,7 +16,7 @@ class HundsCaseA_State(AngularMomentumState):
         super().__init__(J, m, J_symbol="J", m_symbol="m", other_quantum_numbers={"S":S,"Σ":Sigma,"Ω":Omega})
 
 class HundsCaseA_Basis(AngularMomentumBasis):
-    def __init__(self, S_range, Sigma_range,J_range,Omega_range,m_range):
+    def __init__(self, S_range, J_range, Sigma_range=(-100,100),Omega_range=(-100,100),m_range=(-100,100)):
         vectors = []
         S = S_range[0]
         while S <= S_range[1]:
@@ -76,19 +76,19 @@ class HundsCaseA_Basis(AngularMomentumBasis):
 
 
 class HundsCaseA_Basis_with_NS(AngularMomentumBasis):
-    def __init__(self, S_range, Sigma_range,J_range,Omega_range,I_range,F_range,m_range):
+    def __init__(self, S_range, J_range, I_range, Sigma_range=(-100,100), Omega_range=(-100,100),F_range=(-100,100),m_range=(-100,100)):
         b_ns = NuclearSpinBasis(I_range, [-I_range[1], I_range[1]])
-        b_B = HundsCaseA_Basis(S_range, Sigma_range,J_range,Omega_range,[-J_range[1],J_range[1]])
+        b_B = HundsCaseA_Basis(S_range=S_range, Sigma_range=Sigma_range,J_range=J_range,Omega_range=Omega_range,m_range=[-J_range[1],J_range[1]])
         product = b_ns * b_B
         vectors = []
         for b in product.basis_vectors:
             if m_range[0] <= b.m_total <= m_range[1] and F_range[0] <= b.J_total <= F_range[1]:
                 b.F = b.J_total
-                b.J = b.other_quantum_numbers["J"]
+                # b.J = b.other_quantum_numbers["J"]
                 b.Omega = b.other_quantum_numbers["Ω"]
                 b.Sigma = b.other_quantum_numbers["Σ"]
-                b.S = b.other_quantum_numbers["S"]
-                b.I = b.other_quantum_numbers["I"]
+                # b.S = b.other_quantum_numbers["S"]
+                # b.I = b.other_quantum_numbers["I"]
                 b.m = b.m_total
                 b.rename_symbols("F","mF")
                 vectors.append(b)
@@ -105,5 +105,40 @@ class HundsCaseA_Basis_with_NS(AngularMomentumBasis):
         out = []
         for b in self.basis_vectors:
             if b.J_total == F:
+                out.append(b)
+        return out
+
+    def get_S_states(self, S):
+        out = []
+        for b in self.basis_vectors:
+            if b.S == S:
+                out.append(b)
+        return out
+
+    def get_Sigma_states(self, Sigma):
+        out = []
+        for b in self.basis_vectors:
+            if abs(b.Sigma) == Sigma:
+                out.append(b)
+        return out
+
+    def get_J_states(self, J):
+        out = []
+        for b in self.basis_vectors:
+            if b.J_total == J:
+                out.append(b)
+        return out
+
+    def get_Omega_states(self, Omega):
+        out = []
+        for b in self.basis_vectors:
+            if abs(b.Omega) == Omega:
+                out.append(b)
+        return out
+
+    def get_m_states(self, m):
+        out = []
+        for b in self.basis_vectors:
+            if b.m_total == m:
                 out.append(b)
         return out
