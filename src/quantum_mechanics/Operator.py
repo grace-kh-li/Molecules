@@ -43,6 +43,7 @@ class Operator:
     def sorted_eig(self,A):
         # Compute eigenvalues and eigenvectors
         eigvals, eigvecs = np.linalg.eig(A)
+        eigvals = eigvals.real
 
         # Get the sorted indices of eigenvalues
         idx = np.argsort(eigvals)

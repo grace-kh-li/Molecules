@@ -43,6 +43,12 @@ class OrthogonalBasis:
         s = s[:-4] + " }"
         return s
 
+    def get_index(self, basis_vector):
+        for i, b in enumerate(self.basis_vectors):
+            if b == basis_vector:
+                return i
+        raise ValueError("Basis vector not found")
+
     def __len__(self):
         return len(self.basis_vectors)
 
@@ -110,7 +116,7 @@ class QuantumState:
         self.sorted = sorted
 
         for i, b in enumerate(self.basis):
-            if np.abs(self.coeff[i]) > 1e-9:
+            if np.abs(self.coeff[i]) > 1e-6:
                 self.non_zero_basis.append(b)
                 self.non_zero_coeffs.append(coeff[i])
 
@@ -143,17 +149,17 @@ class QuantumState:
         return other * other.braket(self) / other.norm()**2
 
     def __eq__(self, other):
-        return self.basis == other.basis and np.sum(np.abs(self.coeff - other.coeff)) < 1e-9
+        return self.basis == other.basis and np.sum(np.abs(self.coeff - other.coeff)) < 1e-6
 
     def __str__(self):
         s = self.name + " = "
         for i, b in enumerate(self.non_zero_basis):
-            if abs(np.real(self.non_zero_coeffs[i])) < 1e-9:
+            if abs(np.real(self.non_zero_coeffs[i])) < 1e-6:
                 if abs(np.imag(self.non_zero_coeffs[i])) < 0.01:
                     s += "{:.1e}j {} + ".format(np.imag(self.non_zero_coeffs[i]), str(b))
                 else:
                     s += "{:.2f}j {} + ".format(np.imag(self.non_zero_coeffs[i]), str(b))
-            elif abs(np.imag(self.non_zero_coeffs[i])) < 1e-9:
+            elif abs(np.imag(self.non_zero_coeffs[i])) < 1e-6:
                 if abs(np.real(self.non_zero_coeffs[i])) < 0.01:
                     s += "{:.1e} {} + ".format(np.real(self.non_zero_coeffs[i]), str(b))
                 else:

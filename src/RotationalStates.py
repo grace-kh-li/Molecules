@@ -1,3 +1,4 @@
+from src.HundsCaseB import HundsCaseB_Basis
 from src.quantum_mechanics.Operator import *
 
 class STM_RotationalState(BasisVector):
@@ -12,6 +13,7 @@ class STM_RotationalState(BasisVector):
         self.R = R
         self.k = k
         self.mR = m
+        self.type = "STM"
 
 class STM_RotationalBasis(OrthogonalBasis):
     def __init__(self, R_range, k_range=(-100,100), m_range=(-100,100)):
@@ -41,39 +43,78 @@ class STM_RotationalBasis(OrthogonalBasis):
         return out
 
 class STM_RaisingOperator(Operator):
-    def __init__(self, basis:STM_RotationalBasis):
-        matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        for i, b1 in enumerate(basis):
-            for j, b2 in enumerate(basis):
-                if b1.R == b2.R and b1.m_R == b2.m_R and b1.k == b2.k + 1:
-                    R = b2.R
-                    k = b2.k
-                    matrix[i, j] = np.sqrt(R*(R+1) - k * (k+1))
+    def __init__(self, basis):
+        matrix = np.zeros((basis.dimension, basis.dimension), dtype=complex)
+        if basis.name == "STM Rotational Basis":
+            for i, b1 in enumerate(basis):
+                for j, b2 in enumerate(basis):
+                    if b1.R == b2.R and b1.mR == b2.mR and b1.k == b2.k + 1:
+                        R = b2.R
+                        k = b2.k
+                        matrix[i, j] = np.sqrt(R*(R+1) - k * (k+1))
+        elif basis.name == "Hund's case B Basis":
+            for i, b1 in enumerate(basis):
+                for j, b2 in enumerate(basis):
+                    if b1.N == b2.N and b1.m == b2.m and b1.k == b2.k + 1 and b1.J == b2.J and b1.S == b2.S:
+                        R = b2.N
+                        k = b2.k
+                        matrix[i, j] = np.sqrt(R * (R + 1) - k * (k + 1))
         super().__init__(basis, matrix)
 
 class STM_LoweringOperator(Operator):
-    def __init__(self, basis:STM_RotationalBasis):
+    def __init__(self, basis):
         matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        for i, b1 in enumerate(basis):
-            for j, b2 in enumerate(basis):
-                if b1.R == b2.R and b1.m_R == b2.m_R and b1.k == b2.k - 1:
-                    R = b2.R
-                    k = b2.k
-                    matrix[i, j] = np.sqrt(R*(R+1) - k * (k-1))
+        if basis.name == "STM Rotational Basis":
+            for i, b1 in enumerate(basis):
+                for j, b2 in enumerate(basis):
+                    if b1.R == b2.R and b1.mR == b2.mR and b1.k == b2.k - 1:
+                        R = b2.R
+                        k = b2.k
+                        matrix[i, j] = np.sqrt(R*(R+1) - k * (k-1))
+        elif basis.name == "Hund's case B Basis":
+            for i, b1 in enumerate(basis):
+                for j, b2 in enumerate(basis):
+                    if b1.N == b2.N and b1.m == b2.m and b1.k == b2.k - 1 and b1.J == b2.J and b1.S == b2.S:
+                        R = b2.N
+                        k = b2.k
+                        matrix[i, j] = np.sqrt(R*(R+1) - k * (k-1))
         super().__init__(basis, matrix)
 
 class STM_R2_Operator(Operator):
-    def __init__(self, basis:STM_RotationalBasis):
+    def __init__(self, basis):
         matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        for i, b1 in enumerate(basis):
-            matrix[i,i] = b1.R * (b1.R + 1)
+        if basis.name == "STM Rotational Basis":
+            for i, b1 in enumerate(basis):
+                matrix[i,i] = b1.R * (b1.R + 1)
+        elif basis.name == "Hund's case B Basis":
+            for i, b1 in enumerate(basis):
+                matrix[i,i] = b1.N * (b1.N + 1)
         super().__init__(basis, matrix)
 
 class STM_Ra_Operator(Operator):
-    def __init__(self, basis:STM_RotationalBasis):
+    def __init__(self, basis):
         matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
         for i, b1 in enumerate(basis):
             matrix[i,i] = b1.k
+        super().__init__(basis, matrix)
+
+class MShiftOperator(Operator):
+    def __init__(self, basis):
+        matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
+        if basis.name == "STM Rotational Basis":
+            for i, b1 in enumerate(basis):
+                matrix[i,i] = b1.mR
+        else:
+            for i, b1 in enumerate(basis):
+                matrix[i,i] = b1.m
+        super().__init__(basis, matrix)
+
+class JShiftOperator(Operator):
+    def __init__(self, basis):
+        matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
+        if hasattr(basis[0], "J"):
+            for i, b1 in enumerate(basis):
+                matrix[i,i] = b1.J
         super().__init__(basis, matrix)
 
 class Linear_RotationalState(STM_RotationalState):
@@ -95,7 +136,7 @@ class ATM_RotationalState(BasisVector):
         self.R = R
         self.ka = ka
         self.kc = kc
-        self.m_R = m
+        self.mR = m
         self.STM_decomp = STM_decomp # a quantum state in STM basis, representing the physical composition of this ATM state.
         self.E = E
         self.extra_label = extra_label + ", "
@@ -107,7 +148,7 @@ class ATM_RotationalState(BasisVector):
         if self.STM_decomp is None:
             return super().__str__()
         else:
-            s = "|{label}{R}_{ka}{kc}> = ".format(label=self.extra_label,R=self.R, ka=self.ka, kc=self.kc)
+            s = "|{label}{R}_{ka}{kc}, mR={mR}> = ".format(label=self.extra_label,R=self.R, ka=self.ka, kc=self.kc, mR=self.mR)
             s += str(self.STM_decomp)[len(self.STM_decomp.name)+2:]
             return s
 
@@ -119,7 +160,9 @@ class ATM_RotationalBasis(OrthogonalBasis):
         J_m = STM_LoweringOperator(basis)
         R2 = STM_R2_Operator(basis)
         Ra = STM_Ra_Operator(basis)
-        H = Ra * Ra * (A - BC_avg2) + R2 * BC_avg2 + (J_p * J_p + J_m * J_m) * BC_diff4
+        Z = MShiftOperator(basis) * 1e-6
+        H = Ra * Ra * (A - BC_avg2) + R2 * BC_avg2 + (J_p * J_p + J_m * J_m) * BC_diff4 + Z
+        self.H = H
         Es, states = H.diagonalize()
         for s in states:
             s.sort()
@@ -141,17 +184,28 @@ class ATM_RotationalBasis(OrthogonalBasis):
         basis_vectors = []
         # assume prolate
         for R in R_states:
+            m_degeneracy = min(m_range[1],R) + 1 - max(m_range[0],-R)
             ka = 0
-            for i, s in enumerate(R_states[R]):
+            i = 0
+            while i < len(R_states[R]):
                 if ka == 0:
-                    basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R, m=s[0].mR, STM_decomp=s, E=R_energies[R][i], extra_label=self.extra_label))
+                    for j in range(m_degeneracy):
+                        s = R_states[R][i + j]
+                        basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R, m=s[0].mR, STM_decomp=s, E=R_energies[R][i], extra_label=self.extra_label))
+                    i += m_degeneracy
                     ka += 1
                 else:
                     if basis_vectors[-1].ka == ka and basis_vectors[-1].R == R:
-                        basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R-ka, m = s[0].mR, STM_decomp=s, E=R_energies[R][i], extra_label=self.extra_label))
+                        for j in range(m_degeneracy):
+                            s = R_states[R][i + j]
+                            basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R-ka, m = s[0].mR, STM_decomp=s, E=R_energies[R][i], extra_label=self.extra_label))
+                        i += m_degeneracy
                         ka += 1
                     else:
-                        basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R+1-ka, m = s[0].mR, STM_decomp=s, E=R_energies[R][i], extra_label=self.extra_label))
+                        for j in range(m_degeneracy):
+                            s = R_states[R][i + j]
+                            basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R+1-ka, m = s[0].mR, STM_decomp=s, E=R_energies[R][i], extra_label=self.extra_label))
+                        i += m_degeneracy
         # else:
         #     for R in R_states:
         #         kc = 0

@@ -1,5 +1,4 @@
 from src.quantum_mechanics.Basis import *
-from RotationalStates import *
 
 class AngularMomentumState(BasisVector):
     def __init__(self, J, m, J_symbol="J_total", m_symbol="m_total", other_quantum_numbers = None):

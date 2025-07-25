@@ -1,8 +1,5 @@
 from src.quantum_mechanics.Basis import *
-from ElectronicStates import *
-from VibrationalStates import *
-from RotationalStates import *
-from AngularMomentum import *
+from src.AngularMomentum import *
 
 
 class HundsCaseB_State(AngularMomentumState):
