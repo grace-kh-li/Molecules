@@ -38,6 +38,8 @@ class HundsCaseA_Basis(AngularMomentumBasis):
                 Sigma += 1
             S += 1
         super().__init__(vectors, "Hund's case A basis, without nuclear spin")
+        for v in vectors:
+            v.set_basis(self)
 
     def get_S_states(self, S):
         out = []

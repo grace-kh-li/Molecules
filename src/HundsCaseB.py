@@ -30,6 +30,8 @@ class HundsCaseB_Basis(AngularMomentumBasis):
                             J += 1
                         S += 1
         super().__init__(vectors, "Hund's case B Basis")
+        for v in vectors:
+            v.set_basis(self)
 
     def get_N_states(self, N):
         out = []

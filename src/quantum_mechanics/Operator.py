@@ -8,6 +8,10 @@ class Operator:
     def matrix_element(self, state1, state2):
         return np.conj(state1.coeff) @ self.matrix @ state2.coeff
 
+    def __getitem__(self, key):
+        s1, s2 = key
+        return self.matrix_element(s1, s2)
+
     def __str__(self):
         return str(self.matrix)
 
