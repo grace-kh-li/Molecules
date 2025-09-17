@@ -1,57 +1,47 @@
 import numpy as np
 class QuantumState:
-    def __init__(self, name, coeff, basis, sorted=False, Hilbert_space=None):
-        self.name = name
+    def __init__(self, name, coeff, basis, sorted=False, Hilbert_space=None, symmetry_group=None, irrep=None):
+        self.label = name
+        self.symmetry_group = symmetry_group
+        self.irrep = irrep
+        self.Hilbert_space = Hilbert_space
+        self.sorted = sorted
 
         if basis is not None:
-            self.coeff = np.array(coeff)
-            assert self.coeff.shape[0] == basis.dimension
-            self.basis = basis
+            self.get_non_zero_basis(basis,coeff)
 
-            self.Hilbert_space = Hilbert_space
 
-            self.non_zero_coeffs = []
-            self.non_zero_basis = []
-            self.sorted = sorted
-
-            for i, b in enumerate(self.basis):
-                if np.abs(self.coeff[i]) > 1e-6:
-                    self.non_zero_basis.append(b)
-                    self.non_zero_coeffs.append(coeff[i])
-
-            if sorted:
-                self.non_zero_coeffs, self.non_zero_basis = self._get_sorted_by_magnitude()
 
     def braket(self, other):
         """<self|other>"""
-        if self.basis != other.basis: #TODO: add change of basis, including different basis and subbasis
+        if self.defining_basis != other.defining_basis: #TODO: add change of basis, including different basis and subbasis
             raise ValueError("Dot product between basis vectors is not defined")
         else:
             return np.dot(np.conj(self.coeff), other.coeff)
 
     def __add__(self, other):
-        assert self.basis == other.basis # todo: add change of basis
-        return QuantumState(self.coeff + other.coeff, self.basis)
+        assert self.defining_basis == other.defining_basis # todo: add change of basis
+        return QuantumState(self.coeff + other.coeff, self.defining_basis)
 
     def __mul__(self, c):
-        return QuantumState(self.coeff * c, self.basis)
+        return QuantumState(self.coeff * c, self.defining_basis)
 
     def __truediv__(self,c):
-        return QuantumState(self.coeff / c, self.basis)
+        return QuantumState(self.coeff / c, self.defining_basis)
 
     def __sub__(self, other):
-        assert self.basis == other.basis  # todo: add change of basis
-        return QuantumState(self.coeff - other.coeff, self.basis)
+        assert self.defining_basis == other.defining_basis  # todo: add change of basis
+        return QuantumState(self.coeff - other.coeff, self.defining_basis)
 
     def project_onto(self, other):
-        assert self.basis == other.basis  # todo: add change of basis
+        assert self.defining_basis == other.defining_basis  # todo: add change of basis
         return other * other.braket(self) / other.norm()**2
 
     def __eq__(self, other):
-        return self.basis == other.basis and np.sum(np.abs(self.coeff - other.coeff)) < 1e-6
+        return self.defining_basis == other.defining_basis and np.sum(np.abs(self.coeff - other.coeff)) < 1e-6
 
     def __str__(self):
-        s = self.name + " = "
+        s = "|" + self.label + "> = "
         for i, b in enumerate(self.non_zero_basis):
             if abs(np.real(self.non_zero_coeffs[i])) < 1e-6:
                 if abs(np.imag(self.non_zero_coeffs[i])) < 0.01:
@@ -94,16 +84,39 @@ class QuantumState:
     def __iter__(self):
         return iter(self.non_zero_basis)
 
+    def get_non_zero_basis(self, basis, coeff):
+        self.defining_basis = basis
+        self.coeff = np.array(coeff)
+        assert self.coeff.shape[0] == self.defining_basis.dimension
+
+
+        self.non_zero_coeffs = []
+        self.non_zero_basis = []
+        self.sorted = sorted
+
+        for i, b in enumerate(self.defining_basis):
+            if np.abs(self.coeff[i]) > 1e-6:
+                self.non_zero_basis.append(b)
+                self.non_zero_coeffs.append(coeff[i])
+
+        if self.sorted:
+            if sorted:
+                self.non_zero_coeffs, self.non_zero_basis = self._get_sorted_by_magnitude()
+
     def sort(self):
         """ Sort the printed state based on the magnitude of the basis vectors. """
         self.non_zero_coeffs, self.non_zero_basis = self._get_sorted_by_magnitude()
 
+
+
+
+
 class BasisVector(QuantumState):
-    def __init__(self, label):
+    def __init__(self, label, symmetry_group=None, irrep=None):
         self.label = label
         self.basis = None
         self.tensor_components = [self]
-        super().__init__(label, None, None)
+        super().__init__(label, None, None,symmetry_group=symmetry_group,irrep=irrep)
 
     def set_basis(self, basis):
         self.basis = basis
@@ -115,13 +128,16 @@ class BasisVector(QuantumState):
         if self.basis != other.states:
             raise ValueError("Dot product between basis vectors is not defined")
         else:
-            if self.label == other.name:
+            if self.label == other.label:
                 return 1
             else:
                 return 0
 
     def __str__(self):
         return "|" + self.label + ">"
+
+    def show_composition(self):
+        print(super().__str__())
 
     def __repr__(self):
         return str(self)
@@ -135,14 +151,14 @@ class BasisVector(QuantumState):
 class OrthogonalBasis:
     def __init__(self, basis_vectors, name = "basis"):
         self.basis_vectors = basis_vectors
-        self.name = name
+        self.label = name
         for b in basis_vectors:
             b.states = self
         self.dimension = len(basis_vectors)
         self.tensor_components = [self]
 
     def __str__(self):
-        s = self.name + " = \n{"
+        s = self.label + " = \n{"
         for b in self.basis_vectors:
             s += str(b) + ", \n "
         s = s[:-4] + " }"
@@ -174,7 +190,10 @@ class OrthogonalBasis:
                 b3 = BasisVector(label)
                 b3.tensor_components = b1.tensor_components + b2.tensor_components
                 tensor_basis.append(b3)
-        b = OrthogonalBasis(tensor_basis, name=self.name + " x " + other.name)
+                b3.symmetry_group = b1.symmetry_group
+                if b1.irrep is not None and b2.irrep is not None:
+                    b3.irrep = b1.irrep * b2.irrep
+        b = OrthogonalBasis(tensor_basis, name=self.label + " x " + other.label)
         b.tensor_components = self.tensor_components + other.tensor_components
         return b
 
@@ -188,7 +207,7 @@ class OrthogonalBasis:
             sum_basis.append(b1.copy())
         for b2 in basis2:
             sum_basis.append(b2.copy())
-        return OrthogonalBasis(sum_basis, name=basis1.name + " + " + basis2.name)
+        return OrthogonalBasis(sum_basis, name=basis1.label + " + " + basis2.label)
 
 class HilbertSpace:
     def __init__(self, states, name, allowed_basis_classes = None):
@@ -198,10 +217,10 @@ class HilbertSpace:
         self.other_bases = allowed_basis_classes
 
     def __add__(self, other):
-        return HilbertSpace(self.states + other.states, name=f"{self.name} + {other.name}")
+        return HilbertSpace(self.states + other.states, name=f"{self.name} + {other.label}")
 
     def __mul__(self, other):
-        return HilbertSpace(self.states * other.states, name=f"{self.name} x {other.name}")
+        return HilbertSpace(self.states * other.states, name=f"{self.name} x {other.label}")
 
     def change_to_basis(self, vector, new_basis):
         pass

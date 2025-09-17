@@ -1,9 +1,11 @@
 from src.quantum_mechanics.Basis import *
 
 class Operator:
-    def __init__(self, basis, matrix):
+    def __init__(self, basis, matrix, symmetry_group=None, irrep=None):
         self.basis = basis
         self.matrix = matrix
+        self.symmetry_group = symmetry_group
+        self.irrep = irrep
 
     def matrix_element(self, state1, state2):
         return np.conj(state1.coeff) @ self.matrix @ state2.coeff
@@ -12,6 +14,9 @@ class Operator:
         s1, s2 = key
         return self.matrix_element(s1, s2)
 
+    def tensor(self, other):
+        return Operator(self.basis * other.defining_basis, np.kron(self.matrix, other.matrix))
+
     def __str__(self):
         return str(self.matrix)
 
@@ -19,11 +24,11 @@ class Operator:
         return str(self.matrix)
 
     def __add__(self, other):
-        assert self.basis == other.basis
+        assert self.basis == other.defining_basis
         return Operator(self.basis, self.matrix + other.matrix)
 
     def __sub__(self, other):
-        assert self.basis == other.basis
+        assert self.basis == other.defining_basis
         return Operator(self.basis, self.matrix)
 
     def __mul__(self, other):
@@ -35,6 +40,14 @@ class Operator:
 
     def __truediv__(self, c):
         return Operator(self.basis, self.matrix / c)
+
+    def get_connected_states(self):
+        pairs = []
+        for i, b in enumerate(self.basis):
+            for i1, b1 in enumerate(self.basis):
+                if self.matrix[i,i1] != 0 and (b,b1) not in pairs and (b1,b) not in pairs:
+                    pairs.append((b,b1))
+        return pairs
 
     def diagonalize(self):
         eigenvalues, eigenvectors = self.sorted_eig(self.matrix)
@@ -57,3 +70,13 @@ class Operator:
         eigvecs_sorted = eigvecs[:, idx]
 
         return eigvals_sorted, eigvecs_sorted
+
+    def change_basis(self, other_basis, matrix):
+        """ coeff in other basis = matrix @ coeff in current basis"""
+        new_operator_matrix = np.linalg.inv(np.transpose(matrix)) @ self.matrix @ np.transpose(matrix)
+        return Operator(other_basis, new_operator_matrix)
+
+class ZeroOperator(Operator):
+    def __init__(self, basis):
+        matrix = np.zeros((len(basis), len(basis)),dtype=np.complex128)
+        super().__init__(basis, matrix)

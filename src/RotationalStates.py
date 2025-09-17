@@ -1,7 +1,10 @@
+from mpmath import isint
+
+from src.AngularMomentum import AngularMomentumState, AngularMomentumBasis
 from src.HundsCaseB import HundsCaseB_Basis
 from src.quantum_mechanics.Operator import *
 
-class STM_RotationalState(BasisVector):
+class STM_RotationalState(AngularMomentumState):
     def __init__(self, R, k, m):
         assert R % 1 == 0 # make sure R, k, m are integers
         assert k % 1 == 0
@@ -9,13 +12,17 @@ class STM_RotationalState(BasisVector):
         assert R >= 0
         assert -R <= k <= R
         assert -R <= m <= R
-        super().__init__(f"R={R}, k={k}, mR={m}")
+        super().__init__(R,m,"R","m",{"k":k})
         self.R = R
         self.k = k
         self.mR = m
         self.type = "STM"
+        self.label=f"R={R}, k={k}, mR={m}"
 
-class STM_RotationalBasis(OrthogonalBasis):
+    def __str__(self):
+        return "|" + self.label + ">"
+
+class STM_RotationalBasis(AngularMomentumBasis):
     def __init__(self, R_range, k_range=(-100,100), m_range=(-100,100)):
         basis_vectors = []
         for R in range(R_range[0], R_range[1] + 1):
@@ -45,14 +52,14 @@ class STM_RotationalBasis(OrthogonalBasis):
 class STM_RaisingOperator(Operator):
     def __init__(self, basis):
         matrix = np.zeros((basis.dimension, basis.dimension), dtype=complex)
-        if basis.name == "STM Rotational Basis":
+        if isinstance(basis, STM_RotationalBasis):
             for i, b1 in enumerate(basis):
                 for j, b2 in enumerate(basis):
                     if b1.R == b2.R and b1.mR == b2.mR and b1.k == b2.k + 1:
                         R = b2.R
                         k = b2.k
                         matrix[i, j] = np.sqrt(R*(R+1) - k * (k+1))
-        elif basis.name == "Hund's case B Basis":
+        elif isinstance(basis, HundsCaseB_Basis):
             for i, b1 in enumerate(basis):
                 for j, b2 in enumerate(basis):
                     if b1.N == b2.N and b1.m == b2.m and b1.k == b2.k + 1 and b1.J == b2.J and b1.S == b2.S:
@@ -64,14 +71,14 @@ class STM_RaisingOperator(Operator):
 class STM_LoweringOperator(Operator):
     def __init__(self, basis):
         matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        if basis.name == "STM Rotational Basis":
+        if isinstance(basis, STM_RotationalBasis):
             for i, b1 in enumerate(basis):
                 for j, b2 in enumerate(basis):
                     if b1.R == b2.R and b1.mR == b2.mR and b1.k == b2.k - 1:
                         R = b2.R
                         k = b2.k
                         matrix[i, j] = np.sqrt(R*(R+1) - k * (k-1))
-        elif basis.name == "Hund's case B Basis":
+        elif isinstance(basis, HundsCaseB_Basis):
             for i, b1 in enumerate(basis):
                 for j, b2 in enumerate(basis):
                     if b1.N == b2.N and b1.m == b2.m and b1.k == b2.k - 1 and b1.J == b2.J and b1.S == b2.S:
@@ -83,10 +90,10 @@ class STM_LoweringOperator(Operator):
 class STM_R2_Operator(Operator):
     def __init__(self, basis):
         matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        if basis.name == "STM Rotational Basis":
+        if isinstance(basis, STM_RotationalBasis):
             for i, b1 in enumerate(basis):
                 matrix[i,i] = b1.R * (b1.R + 1)
-        elif basis.name == "Hund's case B Basis":
+        elif isinstance(basis, HundsCaseB_Basis):
             for i, b1 in enumerate(basis):
                 matrix[i,i] = b1.N * (b1.N + 1)
         super().__init__(basis, matrix)
@@ -101,7 +108,7 @@ class STM_Ra_Operator(Operator):
 class MShiftOperator(Operator):
     def __init__(self, basis):
         matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        if basis.name == "STM Rotational Basis":
+        if isinstance(basis, STM_RotationalBasis):
             for i, b1 in enumerate(basis):
                 matrix[i,i] = b1.mR
         else:
@@ -149,7 +156,7 @@ class ATM_RotationalState(BasisVector):
             return super().__str__()
         else:
             s = "|{label}{R}_{ka}{kc}, mR={mR}> = ".format(label=self.extra_label,R=self.R, ka=self.ka, kc=self.kc, mR=self.mR)
-            s += str(self.STM_decomp)[len(self.STM_decomp.name)+2:]
+            s += str(self.STM_decomp)[len(self.STM_decomp.label) + 2:]
             return s
 
 
