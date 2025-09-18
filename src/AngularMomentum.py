@@ -27,7 +27,6 @@ class AngularMomentumState(BasisVector):
         self.J_symbol = J
         self.m_symbol = m
         self.label = str(self)[1:-1]
-
         self.quantum_numbers = {self.J_symbol: self.J_total, self.m_symbol: self.m_total} | self.other_quantum_numbers
 
     def __str__(self):
@@ -46,6 +45,7 @@ class AngularMomentumBasis(OrthogonalBasis):
         """ Note: you are responsible for inputting correct and compete basis vectors.
         Each J space must have m = -J, ..., J."""
         super().__init__(basis_vectors, name)
+        self.info = "AngularMomentumBasis" # again, this info is used to pass type information to parent classes to avoid circular imports.
         self.states_sorted = {} # dictionary: {other quantum numbers : {J: [J,m states]}}
         for b in self.basis_vectors:
             if not str(b.other_quantum_numbers) in self.states_sorted:
@@ -58,7 +58,8 @@ class AngularMomentumBasis(OrthogonalBasis):
 
         # if this basis came from coupling two angular momentum bases, the following properties should be updated.
         self.coupled = False
-        self.uncoupled_basis = None
+        self.tensor_basis = None
+        self.uncoupled_bases = [self] # if the current basis came from coupling two angular momentum bases, this keeps track of those two bases.
         self.change_basis_matrix = None
 
     def __mul__(self, other):
@@ -114,17 +115,18 @@ class AngularMomentumBasis(OrthogonalBasis):
             new_basis =  AngularMomentumBasis(vectors, f"{self.label} x {other.label}")
             new_basis.came_from_tensor(self, other)
         else:
-            tensor_basis = []
-            for b1 in self:
-                for b2 in other:
-                    new_qn = {**b1.other_quantum_numbers, "other": b2.label}
-                    v = AngularMomentumState(b1.J_total, b1.m_total, b1.J_symbol, b1.m_symbol, other_quantum_numbers=new_qn)
-                    tensor_basis.append(v)
-                    for qn in new_qn:
-                        setattr(v, qn, new_qn[qn])
-                    setattr(v, b1.J_symbol, b1.J_total)
-                    setattr(v, b1.m_symbol, b1.m_total)
-            new_basis = AngularMomentumBasis(tensor_basis, name=other.label + " x " + self.label)
+            new_basis = self * other
+            # tensor_basis = []
+            # for b1 in self:
+            #     for b2 in other:
+            #         new_qn = {**b1.other_quantum_numbers, "other": b2.label}
+            #         v = AngularMomentumState(b1.J_total, b1.m_total, b1.J_symbol, b1.m_symbol, other_quantum_numbers=new_qn)
+            #         tensor_basis.append(v)
+            #         for qn in new_qn:
+            #             setattr(v, qn, new_qn[qn])
+            #         setattr(v, b1.J_symbol, b1.J_total)
+            #         setattr(v, b1.m_symbol, b1.m_total)
+            # new_basis = AngularMomentumBasis(tensor_basis, name=other.label + " x " + self.label)
         return new_basis
 
     def rename_symbols(self, J, m):
@@ -137,10 +139,10 @@ class AngularMomentumBasis(OrthogonalBasis):
 
     def came_from_tensor(self, basis1, basis2):
         self.coupled = True
-        uncoupled_basis = basis1 * basis2
+        tensor_basis = basis1 * basis2
         matrix = np.zeros((len(self.basis_vectors), len(self.basis_vectors)))
         for i, coupled_b in enumerate(self):
-            for j, uncoupled_b in enumerate(uncoupled_basis):
+            for j, uncoupled_b in enumerate(tensor_basis):
                 phi1 = uncoupled_b.tensor_components[0]
                 phi2 = uncoupled_b.tensor_components[1]
                 J1, m1, J2, m2 = phi1.J_total, phi1.m_total, phi2.J_total, phi2.m_total
@@ -156,11 +158,39 @@ class AngularMomentumBasis(OrthogonalBasis):
                     same_qns = False
                 if same_qns:
                     matrix[i, j] = (-1) ** (J1 - J2 + m3) * np.sqrt(2 * J3 + 1) * wigner_3j(J1, J2, J3, m1, m2, -m3)
-        self.uncoupled_basis = uncoupled_basis
+        self.tensor_basis = tensor_basis
+        self.uncoupled_bases = [basis1, basis2]
+        self.tensor_components = basis1.tensor_components + basis2.tensor_components
         self.change_basis_matrix = matrix # how to use this matrix: uncoupled coeffs = M @ (coupled coeffs); coupled coeffs = transpose(M) @ (uncoupled coeffs)
 
         for i,b in enumerate(self.basis_vectors):
-            b.get_non_zero_basis(self.uncoupled_basis, self.change_basis_matrix[i,:])
+            b.set_defining_basis(self.tensor_basis, self.change_basis_matrix[i, :])
+
+    def unravel_basis(self):
+        """ By default, if an angular momentum basis C comes from coupling two angular momentum bases A and B,
+         the basis vectors as quantum states will have (uncoupled) basis A x B and coefficients given by the
+         CG coefficients. A and B can be simple angular momentum bases, or composite angular momentum bases (i.e.
+         they also came from coupling multiple angular momentum bases).
+
+         In this case, calling this function will set the basis of the current basis vectors (as quantum states)
+         to the completely unraveled basis, i.e. tensor products of a bunch of simple angular momentum bases.
+
+        This method is implemented recursively.
+        """
+        # base case
+        if not self.coupled:
+            self.change_basis_matrix = np.eye(self.dimension)
+            self.tensor_basis = self
+        else: # recursion
+            basis1, basis2 = self.uncoupled_bases
+            basis1.unravel_basis()
+            basis2.unravel_basis()
+            self.tensor_basis = basis1.tensor_basis * basis2.tensor_basis
+            self.change_basis_matrix =  self.change_basis_matrix @ np.kron(basis1.change_basis_matrix, basis2.change_basis_matrix)
+        for i,b in enumerate(self.basis_vectors):
+            b.set_defining_basis(self.tensor_basis, self.change_basis_matrix[i, :])
+
+
 
 
 class ElectronicSpinState(AngularMomentumState):

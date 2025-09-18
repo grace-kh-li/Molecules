@@ -1,4 +1,5 @@
 import numpy as np
+
 class QuantumState:
     def __init__(self, name, coeff, basis, sorted=False, Hilbert_space=None, symmetry_group=None, irrep=None):
         self.label = name
@@ -8,7 +9,7 @@ class QuantumState:
         self.sorted = sorted
 
         if basis is not None:
-            self.get_non_zero_basis(basis,coeff)
+            self.set_defining_basis(basis, coeff)
 
 
 
@@ -84,7 +85,7 @@ class QuantumState:
     def __iter__(self):
         return iter(self.non_zero_basis)
 
-    def get_non_zero_basis(self, basis, coeff):
+    def set_defining_basis(self, basis, coeff):
         self.defining_basis = basis
         self.coeff = np.array(coeff)
         assert self.coeff.shape[0] == self.defining_basis.dimension
@@ -115,11 +116,14 @@ class BasisVector(QuantumState):
     def __init__(self, label, symmetry_group=None, irrep=None):
         self.label = label
         self.basis = None
-        self.tensor_components = [self]
+        self.tensor_components = [self] # this should have either
         self.quantum_numbers = {}
+
         super().__init__(label, None, None,symmetry_group=symmetry_group,irrep=irrep)
 
     def set_basis(self, basis):
+        """ This method sets the basis set that this basis vector belongs to. Not to confuse with
+        set_defining_basis, which sets the basis that this basis vectors is defined by, as a quantum state."""
         self.basis = basis
         i = basis.get_index(self)
         self.coeff = np.zeros(self.basis.dimension)
@@ -157,6 +161,7 @@ class OrthogonalBasis:
             b.states = self
         self.dimension = len(basis_vectors)
         self.tensor_components = [self]
+        self.info = ""  # this will tell you the type of the basis, which allows you to refer to child classes from parent classes without circular imports.
 
     def __str__(self):
         s = self.label + " = \n{"
@@ -184,12 +189,15 @@ class OrthogonalBasis:
         return self.basis_vectors[i]
 
     def __mul__(self, other):
+        if other.info == "AngularMomentumBasis" and self.info != "AngularMomentumBasis":
+            return other * self
         tensor_basis = []
         for b1 in self:
             for b2 in other:
                 label = b1.label + ", " + b2.label
                 b3 = BasisVector(label)
                 b3.tensor_components = b1.tensor_components + b2.tensor_components
+                b3.quantum_numbers = b1.quantum_numbers | b2.quantum_numbers
                 tensor_basis.append(b3)
                 b3.symmetry_group = b1.symmetry_group
                 if b1.irrep is not None and b2.irrep is not None:
