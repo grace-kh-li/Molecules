@@ -116,6 +116,7 @@ class BasisVector(QuantumState):
         self.label = label
         self.basis = None
         self.tensor_components = [self]
+        self.quantum_numbers = {}
         super().__init__(label, None, None,symmetry_group=symmetry_group,irrep=irrep)
 
     def set_basis(self, basis):

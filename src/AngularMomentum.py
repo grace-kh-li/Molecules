@@ -12,17 +12,23 @@ class AngularMomentumState(BasisVector):
         else:
             self.other_quantum_numbers = other_quantum_numbers # dictionary {quantum_number_name: value}
 
-
         s = ""
         for qn in self.other_quantum_numbers:
             s += f"{qn}={other_quantum_numbers[qn]}, "
         s += f"{J_symbol}={J}, {m_symbol}={m}"
         super().__init__(s)
 
+        self.quantum_numbers = {self.J_symbol: self.J_total, self.m_symbol: self.m_total} | self.other_quantum_numbers
+
     def rename_symbols(self, J, m):
+        self.quantum_numbers.pop(self.J_symbol)
+        self.quantum_numbers.pop(self.m_symbol)
+
         self.J_symbol = J
         self.m_symbol = m
         self.label = str(self)[1:-1]
+
+        self.quantum_numbers = {self.J_symbol: self.J_total, self.m_symbol: self.m_total} | self.other_quantum_numbers
 
     def __str__(self):
         s = "|"
@@ -54,6 +60,18 @@ class AngularMomentumBasis(OrthogonalBasis):
         self.coupled = False
         self.uncoupled_basis = None
         self.change_basis_matrix = None
+
+    def __mul__(self, other):
+        if not isinstance(other, AngularMomentumBasis):
+            new_vectors = []
+            for b in self.basis_vectors:
+                for b1 in other.basis_vectors:
+                    other_qns = b.other_quantum_numbers | b1.quantum_numbers
+                    new_vectors.append(AngularMomentumState(b.J_total, b.m_total, b.J_symbol, b.m_symbol, other_qns))
+            return AngularMomentumBasis(new_vectors, name=f"{self.label} x {other.label}")
+        else:
+            return self.tensor(other)
+
 
     def couple(self, other):
         """ Return a new AngularMomentumBasis that came from coupling self and other. The new basis elements will have

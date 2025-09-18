@@ -19,3 +19,4 @@ class VibrationalState(BasisVector):
             if label == "":
                 label = "v=0"
         super().__init__(label)
+        self.quantum_numbers = {"v": label}
