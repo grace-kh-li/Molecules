@@ -1,7 +1,5 @@
-from mpmath import isint
-
-from src.AngularMomentum import AngularMomentumState, AngularMomentumBasis
-from src.HundsCaseB import HundsCaseB_Basis
+from src.quantum_mechanics.AngularMomentum import AngularMomentumState, AngularMomentumBasis
+from src.molecular_structure.HundsCaseB import HundsCaseB_Basis
 from src.quantum_mechanics.Operator import *
 
 class STM_RotationalState(AngularMomentumState):

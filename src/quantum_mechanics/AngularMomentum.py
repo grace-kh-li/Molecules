@@ -68,8 +68,12 @@ class AngularMomentumBasis(OrthogonalBasis):
             for b in self.basis_vectors:
                 for b1 in other.basis_vectors:
                     other_qns = b.other_quantum_numbers | b1.quantum_numbers
-                    new_vectors.append(AngularMomentumState(b.J_total, b.m_total, b.J_symbol, b.m_symbol, other_qns))
-            return AngularMomentumBasis(new_vectors, name=f"{self.label} x {other.label}")
+                    new_state = AngularMomentumState(b.J_total, b.m_total, b.J_symbol, b.m_symbol, other_qns)
+                    new_vectors.append(new_state)
+
+            new_basis = AngularMomentumBasis(new_vectors, name=f"{self.label} x {other.label}")
+            new_basis.tensor_components = self.tensor_components + other.tensor_components
+            return new_basis
         else:
             return self.tensor(other)
 
@@ -114,19 +118,8 @@ class AngularMomentumBasis(OrthogonalBasis):
                                 F += 1
             new_basis =  AngularMomentumBasis(vectors, f"{self.label} x {other.label}")
             new_basis.came_from_tensor(self, other)
-        else:
+        else: # if one tries to "couple" an angular momentum basis with a non-angular momentum basis, just do the normal tensor product.
             new_basis = self * other
-            # tensor_basis = []
-            # for b1 in self:
-            #     for b2 in other:
-            #         new_qn = {**b1.other_quantum_numbers, "other": b2.label}
-            #         v = AngularMomentumState(b1.J_total, b1.m_total, b1.J_symbol, b1.m_symbol, other_quantum_numbers=new_qn)
-            #         tensor_basis.append(v)
-            #         for qn in new_qn:
-            #             setattr(v, qn, new_qn[qn])
-            #         setattr(v, b1.J_symbol, b1.J_total)
-            #         setattr(v, b1.m_symbol, b1.m_total)
-            # new_basis = AngularMomentumBasis(tensor_basis, name=other.label + " x " + self.label)
         return new_basis
 
     def rename_symbols(self, J, m):
@@ -138,6 +131,8 @@ class AngularMomentumBasis(OrthogonalBasis):
         return super().__mul__(other)
 
     def came_from_tensor(self, basis1, basis2):
+        """ This method is called to add information that reflect the fact that the current basis came from
+        coupling two angular momentum bases. """
         self.coupled = True
         tensor_basis = basis1 * basis2
         matrix = np.zeros((len(self.basis_vectors), len(self.basis_vectors)))
@@ -190,7 +185,13 @@ class AngularMomentumBasis(OrthogonalBasis):
         for i,b in enumerate(self.basis_vectors):
             b.set_defining_basis(self.tensor_basis, self.change_basis_matrix[i, :])
 
-
+    def use_as_defining_basis(self):
+        """ Set the basis itself as the defining basis. This means in future calculations, the basis vectors
+        will be expressed in this basis, so the coefficients for the basis vectors will be
+        [1,0,0,...], [0,1,0,...]. etc
+        """
+        for b in self.basis_vectors:
+            b.set_basis(self)
 
 
 class ElectronicSpinState(AngularMomentumState):

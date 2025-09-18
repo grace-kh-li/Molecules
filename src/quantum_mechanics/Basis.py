@@ -8,6 +8,9 @@ class QuantumState:
         self.Hilbert_space = Hilbert_space
         self.sorted = sorted
 
+        self.defining_basis = None
+        self.coeff = None
+
         if basis is not None:
             self.set_defining_basis(basis, coeff)
 
@@ -116,7 +119,10 @@ class BasisVector(QuantumState):
     def __init__(self, label, symmetry_group=None, irrep=None):
         self.label = label
         self.basis = None
-        self.tensor_components = [self] # this should have either
+        self.tensor_components = [self] # for a normal tensor product state, this contains all the tensor components
+                                        # (completely unravelled). However, for angular momentum states,
+                                        # the non-angular momentum states will be grouped into one of the angular momentum state,
+                                        # so it's not completely unravelled.
         self.quantum_numbers = {}
 
         super().__init__(label, None, None,symmetry_group=symmetry_group,irrep=irrep)
@@ -126,8 +132,9 @@ class BasisVector(QuantumState):
         set_defining_basis, which sets the basis that this basis vectors is defined by, as a quantum state."""
         self.basis = basis
         i = basis.get_index(self)
-        self.coeff = np.zeros(self.basis.dimension)
-        self.coeff[i] = 1
+        coeff = np.zeros(self.basis.dimension)
+        coeff[i] = 1
+        super().set_defining_basis(basis, coeff)
 
     def dot(self, other):
         if self.basis != other.states:
@@ -157,8 +164,9 @@ class OrthogonalBasis:
     def __init__(self, basis_vectors, name = "basis"):
         self.basis_vectors = basis_vectors
         self.label = name
+        self.dimension = len(basis_vectors)
         for b in basis_vectors:
-            b.states = self
+            b.set_basis(self)
         self.dimension = len(basis_vectors)
         self.tensor_components = [self]
         self.info = ""  # this will tell you the type of the basis, which allows you to refer to child classes from parent classes without circular imports.
@@ -208,6 +216,26 @@ class OrthogonalBasis:
 
     def __add__(self, other):
         return OrthogonalBasis.direct_sum(self, other)
+
+    def get_subspace(self, qn_val_dict):
+        """ Return the subspace of the basis vector defined by the input dictionary {qn: val} or {qn: (val_lo, val_hi)}"""
+        vectors = []
+        for b in self.basis_vectors:
+            fits = True
+            for qn in qn_val_dict:
+                if isinstance(qn_val_dict[qn], tuple) or isinstance(qn_val_dict[qn], list):
+                    val_low, val_high = qn_val_dict[qn][0], qn_val_dict[qn][1]
+                    if b.quantum_numbers[qn] > val_high or b.quantum_numbers[qn] < val_low:
+                        fits = False
+                        break
+                else:
+                    val = qn_val_dict[qn]
+                    if b.quantum_numbers[qn] != val:
+                        fits = False
+                        break
+            if fits:
+                vectors.append(b)
+        return vectors
 
     @staticmethod
     def direct_sum(basis1, basis2):

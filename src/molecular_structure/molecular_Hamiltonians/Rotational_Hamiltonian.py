@@ -1,4 +1,4 @@
-from src.RotationalStates import STM_RaisingOperator, STM_LoweringOperator, STM_R2_Operator,STM_Ra_Operator,STM_RotationalBasis
+from src.molecular_structure.RotationalStates import STM_RaisingOperator, STM_LoweringOperator, STM_R2_Operator,STM_Ra_Operator
 from src.quantum_mechanics.Operator import Operator
 
 class Rotational_Hamiltonian(Operator):
