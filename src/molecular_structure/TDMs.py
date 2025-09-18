@@ -1,10 +1,10 @@
 from mpmath import isint
 
-from quantum_mechanics.Operator import Operator
+from src.quantum_mechanics.Operator import Operator
 from RotationalStates import STM_RotationalBasis, STM_RotationalState
 import numpy as np
-from tools.WignerSymbols import wigner_3j
-from tools.SphericalTensors import SphericalTensor_prolate
+from src.tools.WignerSymbols import wigner_3j
+from src.tools.SphericalTensors import SphericalTensor_prolate
 
 class DipoleOperator_separable(Operator):
     """ Electric dipole moment operator, for separable basis. It can contain vibronic, rotational, electronic spin and nuclear spin."""

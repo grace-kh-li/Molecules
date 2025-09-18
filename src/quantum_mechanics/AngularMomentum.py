@@ -19,6 +19,7 @@ class AngularMomentumState(BasisVector):
         super().__init__(s)
 
         self.quantum_numbers = {self.J_symbol: self.J_total, self.m_symbol: self.m_total} | self.other_quantum_numbers
+        self.reorder_quantum_numbers()
 
     def rename_symbols(self, J, m):
         self.quantum_numbers.pop(self.J_symbol)
@@ -26,18 +27,18 @@ class AngularMomentumState(BasisVector):
 
         self.J_symbol = J
         self.m_symbol = m
-        self.label = str(self)[1:-1]
         self.quantum_numbers = {self.J_symbol: self.J_total, self.m_symbol: self.m_total} | self.other_quantum_numbers
+        self.reorder_quantum_numbers()
 
-    def __str__(self):
-        s = "|"
-        for qn in self.other_quantum_numbers:
-            if qn == "other":
-                s += f"{self.other_quantum_numbers[qn]}, "
-            else:
-                s += f"{qn}={self.other_quantum_numbers[qn]}, "
-        s += f"{self.J_symbol}={self.J_total}, {self.m_symbol}={self.m_total}>"
-        return s
+    # def __str__(self):
+    #     s = "|"
+    #     for qn in self.other_quantum_numbers:
+    #         if qn == "other":
+    #             s += f"{self.other_quantum_numbers[qn]}, "
+    #         else:
+    #             s += f"{qn}={self.other_quantum_numbers[qn]}, "
+    #     s += f"{self.J_symbol}={self.J_total}, {self.m_symbol}={self.m_total}>"
+    #     return s
 
 
 class AngularMomentumBasis(OrthogonalBasis):
@@ -72,7 +73,17 @@ class AngularMomentumBasis(OrthogonalBasis):
                     new_vectors.append(new_state)
 
             new_basis = AngularMomentumBasis(new_vectors, name=f"{self.label} x {other.label}")
+            new_basis.coupled = self.coupled
+            if self.coupled:
+                new_basis.tensor_basis = self.tensor_basis * other
+                new_basis.change_basis_matrix = np.kron(self.change_basis_matrix, np.eye(other.dimension))
+                new_basis.uncoupled_bases = (self.uncoupled_bases[0], self.uncoupled_bases[1] * other)
+                for i, b in enumerate(new_basis.basis_vectors):
+                    b.set_defining_basis(new_basis.tensor_basis, new_basis.change_basis_matrix[i, :])
+
+
             new_basis.tensor_components = self.tensor_components + other.tensor_components
+
             return new_basis
         else:
             return self.tensor(other)

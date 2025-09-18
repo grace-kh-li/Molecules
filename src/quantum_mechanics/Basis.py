@@ -112,7 +112,7 @@ class QuantumState:
         self.non_zero_coeffs, self.non_zero_basis = self._get_sorted_by_magnitude()
 
 
-
+quantum_number_order = ["elec", "vib", "ev", "S", "mS", "m_S", "I", "mI", "m_I", "N","R", "k", "m_N", "mN","mR","m_R", "J", "m_J", "mJ","F","m_F","m"]
 
 
 class BasisVector(QuantumState):
@@ -146,7 +146,8 @@ class BasisVector(QuantumState):
                 return 0
 
     def __str__(self):
-        return "|" + self.label + ">"
+        self.reorder_quantum_numbers()
+        return "|" + self.label+ ">"
 
     def show_composition(self):
         print(super().__str__())
@@ -157,8 +158,18 @@ class BasisVector(QuantumState):
     def __eq__(self, other):
         return self.label == other.label
 
-    def copy(self):
-        return BasisVector(self.label)
+    # def copy(self):
+    #     b = BasisVector(self.label)
+
+    def reorder_quantum_numbers(self):
+        if len(self.quantum_numbers) == 0:
+            return False
+        ordered_part = [(k, self.quantum_numbers[k]) for k in quantum_number_order if k in self.quantum_numbers]
+        remaining_part = [(k, v) for k, v in self.quantum_numbers.items() if k not in quantum_number_order]
+
+        self.quantum_numbers = dict(ordered_part + remaining_part)
+        self.label = ", ".join(f"{k}={v}" for k, v in self.quantum_numbers.items())
+        return True
 
 class OrthogonalBasis:
     def __init__(self, basis_vectors, name = "basis"):
