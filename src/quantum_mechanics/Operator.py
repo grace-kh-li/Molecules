@@ -1,3 +1,5 @@
+from mpmath import isint
+
 from src.quantum_mechanics.Basis import *
 
 class Operator:
@@ -12,10 +14,19 @@ class Operator:
 
     def __getitem__(self, key):
         s1, s2 = key
-        return self.matrix_element(s1, s2)
+        if isinstance(s1, int) and isinstance(s2, int):
+            return self.matrix[s1, s2]
+        elif isinstance(s1, QuantumState) and isinstance(s2, QuantumState):
+            return self.matrix_element(s1, s2)
+        else:
+            raise TypeError("Operator[i,j] inputs must be integers or QuantumState")
+
+    def __setitem__(self, key, value):
+        s1, s2 = key
+        self.matrix[s1, s2] = value
 
     def tensor(self, other):
-        return Operator(self.basis * other.defining_basis, np.kron(self.matrix, other.matrix))
+        return Operator(self.basis * other.basis, np.kron(self.matrix, other.matrix))
 
     def __str__(self):
         return str(self.matrix)
@@ -24,11 +35,11 @@ class Operator:
         return str(self.matrix)
 
     def __add__(self, other):
-        assert self.basis == other.defining_basis
+        assert self.basis == other.basis
         return Operator(self.basis, self.matrix + other.matrix)
 
     def __sub__(self, other):
-        assert self.basis == other.defining_basis
+        assert self.basis == other.basis
         return Operator(self.basis, self.matrix)
 
     def __mul__(self, other):

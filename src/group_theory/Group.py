@@ -20,7 +20,7 @@ class Group:
         return self.name
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.name == other.label
+        return type(self) == type(other) and self.name == other.name
 
 class Representation:
     def __init__(self, name, group, matrices):
@@ -57,7 +57,7 @@ class Representation:
         return out
 
     def __mul__(self, other):
-        r = Representation(f"{self.name} x {other.label}", self.group, None)
+        r = Representation(f"{self.name} x {other.name}", self.group, None)
         for i, g in enumerate(self.group):
             r._define_matrix(i, np.kron(self.representation_elements[i].matrix,
                                            other.representation_elements[i].matrix))
@@ -68,7 +68,7 @@ class Representation:
         return r
 
     def __add__(self, other):
-        r = Representation(f"{self.name} + {other.label}", self.group, None)
+        r = Representation(f"{self.name} + {other.name}", self.group, None)
         for i, g in enumerate(self.group):
             r._define_matrix(i, direct_sum(self.representation_elements[i].matrix, other.representation_elements[i].matrix))
         return r
@@ -264,7 +264,7 @@ class LieAlgebraElement:
         return g1
 
     def __add__(self, other):
-        g1 = LieAlgebraElement(f"{self.name} + {other.label}", self.matrix + other.matrix)
+        g1 = LieAlgebraElement(f"{self.name} + {other.name}", self.matrix + other.matrix)
         g1.Lie_algebra = self.Lie_algebra
         return g1
 
@@ -279,19 +279,19 @@ class LieAlgebra:
     def __str__(self):
         s = self.name + "\n {"
         for e in self.basis_elements:
-            s += e.label + ", "
+            s += e.name + ", "
         return s[:-2] + "}"
 
     def __repr__(self):
         return str(self)
 
     def __eq__(self, other):
-        return self.name == other.label and self.basis_elements == other.basis_elements
+        return self.name == other.name and self.basis_elements == other.basis_elements
 
     def Lie_bracket(self, g1, g2):
         if not g1.Lie_algebra == g2.Lie_algebra == self:
             raise ValueError("Lie-algebra mismatch.")
-        g3 = LieAlgebraElement(f"[{g1.label},{g2.label}]", g1.matrix * g2.matrix - g2.matrix * g1.matrix)
+        g3 = LieAlgebraElement(f"[{g1.name},{g2.name}]", g1.matrix * g2.matrix - g2.matrix * g1.matrix)
         g3.Lie_algebra = self
 
     def __getitem__(self, i):
@@ -317,7 +317,7 @@ class LieAlgebraRepresentationElement:
     def __init__(self, element, matrix):
         self.algebra_element = element
         self.matrix = matrix
-        self.name = element.label
+        self.name = element.name
         self.Lie_algebra = element.Lie_algebra
         self.dimension = matrix.shape
 
@@ -358,7 +358,7 @@ class LieGroupRepresentation(Representation):
         return out
 
     def __mul__(self, other):
-        rep = LieGroupRepresentation(f"{self.name} x {other.label}")
+        rep = LieGroupRepresentation(f"{self.name} x {other.name}")
         for i, r in enumerate(self.algebra_rep_elements):
             rep._define_Lie_algebra_matrix(i, np.kron(r.matrix, other.algebra_rep_elements[i].matrix))
 
@@ -372,7 +372,7 @@ class LieGroupRepresentation(Representation):
         return rep
 
     def __add__(self, other):
-        rep = LieGroupRepresentation(f"{self.name} x {other.label}", self.group)
+        rep = LieGroupRepresentation(f"{self.name} x {other.name}", self.group)
         for i, r in enumerate(self.algebra_rep_elements):
             rep._define_Lie_algebra_matrix(i, direct_sum(r.matrix, other.algebra_rep_elements[i].matrix))
 

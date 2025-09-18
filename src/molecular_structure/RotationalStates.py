@@ -2,7 +2,25 @@ from src.quantum_mechanics.AngularMomentum import AngularMomentumState, AngularM
 from src.molecular_structure.HundsCaseB import HundsCaseB_Basis
 from src.quantum_mechanics.Operator import *
 
-class STM_RotationalState(AngularMomentumState):
+class RotationalState(AngularMomentumState):
+    def __init__(self, R, m, other_qns):
+        self.info = "RotationalState"
+        super().__init__(R, m, "R", "m", other_qns)
+
+class RotationalBasis(AngularMomentumBasis):
+    def __init__(self, vectors, name):
+        self.info = "RotationalBasis"
+        super().__init__(vectors, name)
+
+    def get_R_subspace(self, R):
+        out = []
+        for b in self.basis_vectors:
+            if b.R == R:
+                out.append(b)
+        return out
+
+
+class STM_RotationalState(RotationalState):
     def __init__(self, R, k, m):
         assert R % 1 == 0 # make sure R, k, m are integers
         assert k % 1 == 0
@@ -10,17 +28,17 @@ class STM_RotationalState(AngularMomentumState):
         assert R >= 0
         assert -R <= k <= R
         assert -R <= m <= R
-        super().__init__(R,m,"R","m",{"k":k})
+        super().__init__(R,m,{"k":k})
         self.R = R
         self.k = k
         self.mR = m
-        self.type = "STM"
         self.label=f"R={R}, k={k}, mR={m}"
 
     def __str__(self):
         return "|" + self.label + ">"
 
-class STM_RotationalBasis(AngularMomentumBasis):
+
+class STM_RotationalBasis(RotationalBasis):
     def __init__(self, R_range, k_range=(-100,100), m_range=(-100,100)):
         basis_vectors = []
         for R in range(R_range[0], R_range[1] + 1):
@@ -32,13 +50,6 @@ class STM_RotationalBasis(AngularMomentumBasis):
                         continue
                     basis_vectors.append(STM_RotationalState(R, k, m))
         super().__init__(basis_vectors, "STM Rotational Basis")
-
-    def get_R_subspace(self, R):
-        out = []
-        for b in self.basis_vectors:
-            if b.R == R:
-                out.append(b)
-        return out
 
     def get_k_subspace(self, k):
         out = []
@@ -126,8 +137,8 @@ class Linear_RotationalState(STM_RotationalState):
     def __init__(self, R, m):
         super().__init__(R, 0, m)
 
-class ATM_RotationalState(BasisVector):
-    def __init__(self, R, ka, kc, m, STM_decomp=None, E=0.0, extra_label=""):
+class ATM_RotationalState(RotationalState):
+    def __init__(self, R, ka, kc, m, STM_decomp=None, E=0.0):
         assert R % 1 == 0  # make sure R, k, m are integers
         assert ka % 1 == 0
         assert kc % 1 == 0
@@ -137,14 +148,13 @@ class ATM_RotationalState(BasisVector):
         assert -R <= kc <= R
         assert abs(ka) + abs(kc) == R or abs(ka) + abs(kc) == R + 1
         assert -R <= m <= R
-        super().__init__(f"{extra_label}, R={R}, ka={ka}, kc={kc}, m={m}")
+        super().__init__(R, m, {"k_a": ka, "k_c":kc})
         self.R = R
         self.ka = ka
         self.kc = kc
         self.mR = m
         self.STM_decomp = STM_decomp # a quantum state in STM basis, representing the physical composition of this ATM state.
         self.E = E
-        self.extra_label = extra_label + ", "
 
     def get_STM_decomp(self):
         return self.STM_decomp
@@ -153,13 +163,13 @@ class ATM_RotationalState(BasisVector):
         if self.STM_decomp is None:
             return super().__str__()
         else:
-            s = "|{label}{R}_{ka}{kc}, mR={mR}> = ".format(label=self.extra_label,R=self.R, ka=self.ka, kc=self.kc, mR=self.mR)
+            s = "|{R}_{ka}{kc}, mR={mR}> = ".format(R=self.R, ka=self.ka, kc=self.kc, mR=self.mR)
             s += str(self.STM_decomp)[len(self.STM_decomp.label) + 2:]
             return s
 
 
-class ATM_RotationalBasis(OrthogonalBasis):
-    def __init__(self, A, BC_avg2, BC_diff4, R_range, m_range=(-100,100), extra_label=""):
+class ATM_RotationalBasis(RotationalBasis):
+    def __init__(self, A, BC_avg2, BC_diff4, R_range, m_range=(-100,100)):
         basis = STM_RotationalBasis(R_range=R_range, m_range=m_range)
         J_p = STM_RaisingOperator(basis)
         J_m = STM_LoweringOperator(basis)
@@ -171,7 +181,6 @@ class ATM_RotationalBasis(OrthogonalBasis):
         Es, states = H.diagonalize()
         for s in states:
             s.sort()
-        self.extra_label = extra_label
 
 
         R_states = {}
@@ -196,20 +205,20 @@ class ATM_RotationalBasis(OrthogonalBasis):
                 if ka == 0:
                     for j in range(m_degeneracy):
                         s = R_states[R][i + j]
-                        basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R, m=s[0].mR, STM_decomp=s, E=R_energies[R][i], extra_label=self.extra_label))
+                        basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R, m=s[0].mR, STM_decomp=s, E=R_energies[R][i]))
                     i += m_degeneracy
                     ka += 1
                 else:
                     if basis_vectors[-1].ka == ka and basis_vectors[-1].R == R:
                         for j in range(m_degeneracy):
                             s = R_states[R][i + j]
-                            basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R-ka, m = s[0].mR, STM_decomp=s, E=R_energies[R][i], extra_label=self.extra_label))
+                            basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R-ka, m = s[0].mR, STM_decomp=s, E=R_energies[R][i]))
                         i += m_degeneracy
                         ka += 1
                     else:
                         for j in range(m_degeneracy):
                             s = R_states[R][i + j]
-                            basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R+1-ka, m = s[0].mR, STM_decomp=s, E=R_energies[R][i], extra_label=self.extra_label))
+                            basis_vectors.append(ATM_RotationalState(R, ka=ka, kc=R+1-ka, m = s[0].mR, STM_decomp=s, E=R_energies[R][i]))
                         i += m_degeneracy
         # else:
         #     for R in R_states:
@@ -225,7 +234,7 @@ class ATM_RotationalBasis(OrthogonalBasis):
         #                 else:
         #                     basis_vectors.append(ATM_RotationalState(R, ka=R+1-kc, kc=kc,m = s[0].m, STM_decomp=s, E=R_energies[R][i]))
 
-        super().__init__(basis_vectors)
+        super().__init__(basis_vectors, "ATM rotational basis")
 
     def get_ka_subspace(self, ka):
         out = []

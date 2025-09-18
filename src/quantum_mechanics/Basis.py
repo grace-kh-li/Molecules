@@ -208,8 +208,10 @@ class OrthogonalBasis:
         return self.basis_vectors[i]
 
     def __mul__(self, other):
+        # non-angular momentum x angular momentum gets directed to angular momentum x other
         if other.info == "AngularMomentumBasis" and self.info != "AngularMomentumBasis":
             return other * self
+
         tensor_basis = []
         for b1 in self:
             for b2 in other:

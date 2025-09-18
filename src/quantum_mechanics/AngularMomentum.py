@@ -61,7 +61,7 @@ class AngularMomentumBasis(OrthogonalBasis):
         self.coupled = False
         self.tensor_basis = None
         self.uncoupled_bases = [self] # if the current basis came from coupling two angular momentum bases, this keeps track of those two bases.
-        self.change_basis_matrix = None
+        self.basis_change_matrix = None
 
     def __mul__(self, other):
         if not isinstance(other, AngularMomentumBasis):
@@ -76,10 +76,10 @@ class AngularMomentumBasis(OrthogonalBasis):
             new_basis.coupled = self.coupled
             if self.coupled:
                 new_basis.tensor_basis = self.tensor_basis * other
-                new_basis.change_basis_matrix = np.kron(self.change_basis_matrix, np.eye(other.dimension))
+                new_basis.basis_change_matrix = np.kron(self.basis_change_matrix, np.eye(other.dimension))
                 new_basis.uncoupled_bases = (self.uncoupled_bases[0], self.uncoupled_bases[1] * other)
                 for i, b in enumerate(new_basis.basis_vectors):
-                    b.set_defining_basis(new_basis.tensor_basis, new_basis.change_basis_matrix[i, :])
+                    b.set_defining_basis(new_basis.tensor_basis, new_basis.basis_change_matrix[i, :])
 
 
             new_basis.tensor_components = self.tensor_components + other.tensor_components
@@ -141,6 +141,12 @@ class AngularMomentumBasis(OrthogonalBasis):
     def tensor(self, other):
         return super().__mul__(other)
 
+    def get_uncoupled_basis(self):
+        return self.tensor_basis
+
+    def get_basis_change_matrix(self):
+        return self.basis_change_matrix
+
     def came_from_tensor(self, basis1, basis2):
         """ This method is called to add information that reflect the fact that the current basis came from
         coupling two angular momentum bases. """
@@ -167,10 +173,10 @@ class AngularMomentumBasis(OrthogonalBasis):
         self.tensor_basis = tensor_basis
         self.uncoupled_bases = [basis1, basis2]
         self.tensor_components = basis1.tensor_components + basis2.tensor_components
-        self.change_basis_matrix = matrix # how to use this matrix: uncoupled coeffs = M @ (coupled coeffs); coupled coeffs = transpose(M) @ (uncoupled coeffs)
+        self.basis_change_matrix = matrix # how to use this matrix: uncoupled coeffs = M @ (coupled coeffs); coupled coeffs = transpose(M) @ (uncoupled coeffs)
 
         for i,b in enumerate(self.basis_vectors):
-            b.set_defining_basis(self.tensor_basis, self.change_basis_matrix[i, :])
+            b.set_defining_basis(self.tensor_basis, self.basis_change_matrix[i, :])
 
     def unravel_basis(self):
         """ By default, if an angular momentum basis C comes from coupling two angular momentum bases A and B,
@@ -185,16 +191,16 @@ class AngularMomentumBasis(OrthogonalBasis):
         """
         # base case
         if not self.coupled:
-            self.change_basis_matrix = np.eye(self.dimension)
+            self.basis_change_matrix = np.eye(self.dimension)
             self.tensor_basis = self
         else: # recursion
             basis1, basis2 = self.uncoupled_bases
             basis1.unravel_basis()
             basis2.unravel_basis()
             self.tensor_basis = basis1.tensor_basis * basis2.tensor_basis
-            self.change_basis_matrix =  self.change_basis_matrix @ np.kron(basis1.change_basis_matrix, basis2.change_basis_matrix)
+            self.basis_change_matrix = self.basis_change_matrix @ np.kron(basis1.basis_change_matrix, basis2.basis_change_matrix)
         for i,b in enumerate(self.basis_vectors):
-            b.set_defining_basis(self.tensor_basis, self.change_basis_matrix[i, :])
+            b.set_defining_basis(self.tensor_basis, self.basis_change_matrix[i, :])
 
     def use_as_defining_basis(self):
         """ Set the basis itself as the defining basis. This means in future calculations, the basis vectors
