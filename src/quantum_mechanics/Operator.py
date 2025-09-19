@@ -52,21 +52,40 @@ class Operator:
     def __truediv__(self, c):
         return Operator(self.basis, self.matrix / c)
 
-    def get_connected_states(self):
+    def get_connected_states(self, threshold=1e-5):
         pairs = []
         for i, b in enumerate(self.basis):
             for i1, b1 in enumerate(self.basis):
-                if self.matrix[i,i1] != 0 and (b,b1) not in pairs and (b1,b) not in pairs:
-                    pairs.append((b,b1))
+                if np.abs(self.matrix[i,i1]) > threshold and (b,b1) not in pairs and (b1,b) not in pairs:
+                    if "elec" not in b.quantum_numbers:
+                        pairs.append((b,b1))
+                    else:
+                        if b1.quantum_numbers["elec"] == "X":
+                            pairs.append((b1,b))
+                        elif b1.quantum_numbers["elec"] < b.quantum_numbers["elec"] != "X":
+                            pairs.append((b1,b))
+                        else:
+                            pairs.append((b,b1))
         return pairs
 
-    def diagonalize(self):
+    def diagonalize(self, get_matrix=False, get_states=True):
+        """ Return the eigenvalues eigen states as quantum states, and eigenvectors of the matrix (coefficients)"""
         eigenvalues, eigenvectors = self.sorted_eig(self.matrix)
-        eigenstates = []
-        for i in range(self.basis.dimension):
-            v = eigenvectors[:,i]
-            eigenstates.append(QuantumState(f"φ_{i}",v, self.basis))
-        return eigenvalues, eigenstates
+
+        if not get_matrix and not get_states:
+            return eigenvalues
+
+        if get_matrix and not get_states:
+            return eigenvalues, eigenvectors
+        else:
+            eigenstates = []
+            for i in range(self.basis.dimension):
+                v = eigenvectors[:, i]
+                eigenstates.append(QuantumState(f"φ_{i}", v, self.basis))
+            if get_matrix:
+                return eigenvalues, eigenstates, eigenvectors
+            else:
+                return eigenvalues, eigenstates
 
     def sorted_eig(self,A):
         # Compute eigenvalues and eigenvectors
@@ -83,8 +102,8 @@ class Operator:
         return eigvals_sorted, eigvecs_sorted
 
     def change_basis(self, other_basis, matrix):
-        """ coeff in other basis = matrix @ coeff in current basis"""
-        new_operator_matrix = np.linalg.inv(np.transpose(matrix)) @ self.matrix @ np.transpose(matrix)
+        """ Convention for the orthonormal basis change matrix: coeff in other basis = matrix @ coeff in current basis"""
+        new_operator_matrix = matrix @ self.matrix @ np.conj(matrix.T)
         return Operator(other_basis, new_operator_matrix)
 
 class ZeroOperator(Operator):

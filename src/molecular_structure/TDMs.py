@@ -3,11 +3,10 @@ from mpmath import isint
 from src.molecular_structure.VibronicStates import VibronicState
 from src.quantum_mechanics.AngularMomentum import ElectronicSpinBasis, NuclearSpinBasis
 from src.quantum_mechanics.Operator import Operator
-from RotationalStates import STM_RotationalBasis, STM_RotationalState, RotationalBasis
+from RotationalStates import STM_RotationalBasis, STM_RotationalState, RotationalBasis, ATM_RotationalBasis
 import numpy as np
 from src.tools.WignerSymbols import wigner_3j
 from src.tools.SphericalTensors import SphericalTensor_prolate
-
 
 class DipoleOperator(Operator):
     """ Abstract class for dipole operators. """
@@ -15,39 +14,40 @@ class DipoleOperator(Operator):
         self.sigma_space = sigma_space
         super().__init__(basis, matrix, symmetry_group, irrep)
 
-    @staticmethod
-    def get_operator_class(basis):
-        if isinstance(basis, STM_RotationalBasis):
-            return DipoleOperator_STM
-        elif isinstance(basis, ElectronicSpinBasis) or isinstance(basis, NuclearSpinBasis):
-            return DipoleOperator_spin
-        elif len(basis.tensor_components) == 2 and isinstance(basis.tensor_components[0], STM_RotationalBasis) and isinstance(basis.tensor_components[1][0], VibronicState):
-            return DipoleOperator_evr
-        else:
-            raise NotImplementedError
 
 
-class DipoleOperator_STM(DipoleOperator):
-    """ Electric dipole moment operator, for STM basis """
-    def __init__(self, basis, dipole_mol, sigma_space, symmetry_group=None, irrep=None):
-        """ STM basis, rotational transitions """
-        matrix = np.zeros((len(basis), len(basis)), dtype=np.complex128)
-        for sigma_mol in (-1, 0, 1):
-            D = D_matrix_conj(basis, sigma_space, sigma_mol)
-            for i, b in enumerate(basis):
-                for i1, b1 in enumerate(basis):
-                    matrix[i,i1] += dipole_mol[1][sigma_mol] * D[i,i1]
-        super().__init__(sigma_space, basis, matrix, symmetry_group, irrep)
+
+
+# class DipoleOperator_STM(DipoleOperator):
+#     """ Electric dipole moment operator, for STM basis """
+#     def __init__(self, basis, dipole_mol, sigma_space, symmetry_group=None, irrep=None):
+#         """ STM basis, rotational transitions """
+#         matrix = np.zeros((len(basis), len(basis)), dtype=np.complex128)
+#         for sigma_mol in (-1, 0, 1):
+#             D = D_matrix_conj(basis, sigma_space, sigma_mol)
+#             for i, b in enumerate(basis):
+#                 for i1, b1 in enumerate(basis):
+#                     matrix[i,i1] += dipole_mol[1][sigma_mol] * D[i,i1]
+#         super().__init__(sigma_space, basis, matrix, symmetry_group, irrep)
 
 
 class DipoleOperator_evr(DipoleOperator):
-    """ Electric dipole moment operator, for Vibronic x STM basis """
+    """ Electric dipole moment operator, for Vibronic x (STM or ATM) basis """
     def __init__(self, basis, dipole_mol, sigma_space, symmetry_group=None, irrep=None):
         matrix = np.zeros((len(basis), len(basis)), dtype=np.complex128)
         rot_basis = basis.tensor_components[0]
+        if isinstance(rot_basis, STM_RotationalBasis):
+            STM_basis = rot_basis
+        elif isinstance(rot_basis, ATM_RotationalBasis):
+            STM_basis = rot_basis.STM_basis
+        else:
+            raise TypeError("The rotational state must be either STM or ATM!")
+
         for sigma_mol in (-1, 0, 1):
-            D = D_matrix_conj(rot_basis, sigma_space, sigma_mol)
+            D = D_matrix_conj(STM_basis, sigma_space, sigma_mol)
             d_ev = dipole_mol[1][sigma_mol]
+            if isinstance(rot_basis, ATM_RotationalBasis):
+                D = D.change_basis(rot_basis,rot_basis.STM_basis_change_matrix.conj().T)
             matrix += np.kron(D.matrix, d_ev.matrix)
         super().__init__(sigma_space, basis, matrix, symmetry_group, irrep)
 

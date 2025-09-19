@@ -112,7 +112,7 @@ class QuantumState:
         self.non_zero_coeffs, self.non_zero_basis = self._get_sorted_by_magnitude()
 
 
-quantum_number_order = ["elec", "vib", "ev", "S", "mS", "m_S", "I", "mI", "m_I", "N","R", "k", "m_N", "mN","mR","m_R", "J", "m_J", "mJ","F","m_F","m"]
+quantum_number_order = ["elec", "vib", "ev", "S", "mS","ms", "m_S", "I", "mI", "m_I", "N","R", "k","ka","k_a","kc","k_c", "m_N", "mN","mR","m_R", "J", "m_J", "mJ","F","m_F","m"]
 
 
 class BasisVector(QuantumState):
@@ -134,7 +134,8 @@ class BasisVector(QuantumState):
         i = basis.get_index(self)
         coeff = np.zeros(self.basis.dimension)
         coeff[i] = 1
-        super().set_defining_basis(basis, coeff)
+        if self.defining_basis is None:
+            super().set_defining_basis(basis, coeff)
 
     def dot(self, other):
         if self.basis != other.states:
