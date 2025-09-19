@@ -20,6 +20,7 @@ class AngularMomentumState(BasisVector):
 
         self.quantum_numbers = {self.J_symbol: self.J_total, self.m_symbol: self.m_total} | self.other_quantum_numbers
         self.reorder_quantum_numbers()
+        self.AM_tensor_components = [self]
 
     def rename_symbols(self, J, m):
         self.quantum_numbers.pop(self.J_symbol)
@@ -70,6 +71,7 @@ class AngularMomentumBasis(OrthogonalBasis):
                 for b1 in other.basis_vectors:
                     other_qns = b.other_quantum_numbers | b1.quantum_numbers
                     new_state = AngularMomentumState(b.J_total, b.m_total, b.J_symbol, b.m_symbol, other_qns)
+                    new_state.tensor_components = b.tensor_components + b1.tensor_components
                     new_vectors.append(new_state)
 
             new_basis = AngularMomentumBasis(new_vectors, name=f"{self.label} x {other.label}")
@@ -141,6 +143,7 @@ class AngularMomentumBasis(OrthogonalBasis):
     def tensor(self, other):
         return super().__mul__(other)
 
+
     def get_uncoupled_basis(self):
         return self.tensor_basis
 
@@ -155,8 +158,8 @@ class AngularMomentumBasis(OrthogonalBasis):
         matrix = np.zeros((len(self.basis_vectors), len(self.basis_vectors)))
         for i, coupled_b in enumerate(self):
             for j, uncoupled_b in enumerate(tensor_basis):
-                phi1 = uncoupled_b.tensor_components[0]
-                phi2 = uncoupled_b.tensor_components[1]
+                phi1 = uncoupled_b.AM_tensor_components[0]
+                phi2 = uncoupled_b.AM_tensor_components[1]
                 J1, m1, J2, m2 = phi1.J_total, phi1.m_total, phi2.J_total, phi2.m_total
                 J3, m3 = coupled_b.J_total, coupled_b.m_total
                 same_qns = True

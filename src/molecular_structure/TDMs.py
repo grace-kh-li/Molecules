@@ -1,12 +1,8 @@
-from mpmath import isint
-
-from src.molecular_structure.VibronicStates import VibronicState
-from src.quantum_mechanics.AngularMomentum import ElectronicSpinBasis, NuclearSpinBasis
 from src.quantum_mechanics.Operator import Operator
 from RotationalStates import STM_RotationalBasis, STM_RotationalState, RotationalBasis, ATM_RotationalBasis
 import numpy as np
 from src.tools.WignerSymbols import wigner_3j
-from src.tools.SphericalTensors import SphericalTensor_prolate
+
 
 class DipoleOperator(Operator):
     """ Abstract class for dipole operators. """

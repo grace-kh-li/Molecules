@@ -224,8 +224,11 @@ class OrthogonalBasis:
                 b3.symmetry_group = b1.symmetry_group
                 if b1.irrep is not None and b2.irrep is not None:
                     b3.irrep = b1.irrep * b2.irrep
+                if self.info == "AngularMomentumBasis" and other.info == "AngularMomentumBasis":
+                    b3.AM_tensor_components = b1.AM_tensor_components + b2.AM_tensor_components
         b = OrthogonalBasis(tensor_basis, name=self.label + " x " + other.label)
         b.tensor_components = self.tensor_components + other.tensor_components
+
         return b
 
     def __add__(self, other):

@@ -1,6 +1,5 @@
-from mpmath import isint
-
 from src.quantum_mechanics.Basis import *
+
 
 class Operator:
     def __init__(self, basis, matrix, symmetry_group=None, irrep=None):
@@ -56,16 +55,16 @@ class Operator:
         pairs = []
         for i, b in enumerate(self.basis):
             for i1, b1 in enumerate(self.basis):
-                if np.abs(self.matrix[i,i1]) > threshold and (b,b1) not in pairs and (b1,b) not in pairs:
+                if np.abs(self.matrix[i, i1]) > threshold and (b, b1) not in pairs and (b1, b) not in pairs:
                     if "elec" not in b.quantum_numbers:
-                        pairs.append((b,b1))
+                        pairs.append((b, b1))
                     else:
                         if b1.quantum_numbers["elec"] == "X":
-                            pairs.append((b1,b))
+                            pairs.append((b1, b))
                         elif b1.quantum_numbers["elec"] < b.quantum_numbers["elec"] != "X":
-                            pairs.append((b1,b))
+                            pairs.append((b1, b))
                         else:
-                            pairs.append((b,b1))
+                            pairs.append((b, b1))
         return pairs
 
     def diagonalize(self, get_matrix=False, get_states=True):
@@ -87,7 +86,7 @@ class Operator:
             else:
                 return eigenvalues, eigenstates
 
-    def sorted_eig(self,A):
+    def sorted_eig(self, A):
         # Compute eigenvalues and eigenvectors
         eigvals, eigvecs = np.linalg.eig(A)
         eigvals = eigvals.real
@@ -106,7 +105,8 @@ class Operator:
         new_operator_matrix = matrix @ self.matrix @ np.conj(matrix.T)
         return Operator(other_basis, new_operator_matrix)
 
+
 class ZeroOperator(Operator):
     def __init__(self, basis):
-        matrix = np.zeros((len(basis), len(basis)),dtype=np.complex128)
+        matrix = np.zeros((len(basis), len(basis)), dtype=np.complex128)
         super().__init__(basis, matrix)
