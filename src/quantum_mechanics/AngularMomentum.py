@@ -7,10 +7,14 @@ class AngularMomentumState(BasisVector):
         self.m_total = m
         self.J_symbol = J_symbol
         self.m_symbol = m_symbol
+        self.__setattr__(J_symbol, J)
+        self.__setattr__(m_symbol, m)
         if other_quantum_numbers is None:
             self.other_quantum_numbers = {}
         else:
             self.other_quantum_numbers = other_quantum_numbers # dictionary {quantum_number_name: value}
+            for qn in self.other_quantum_numbers:
+                self.__setattr__(qn, other_quantum_numbers[qn])
 
         s = ""
         for qn in self.other_quantum_numbers:
@@ -28,6 +32,8 @@ class AngularMomentumState(BasisVector):
 
         self.J_symbol = J
         self.m_symbol = m
+        self.__setattr__(J, self.J_total)
+        self.__setattr__(m, self.m_total)
         self.quantum_numbers = {self.J_symbol: self.J_total, self.m_symbol: self.m_total} | self.other_quantum_numbers
         self.reorder_quantum_numbers()
 
@@ -124,6 +130,8 @@ class AngularMomentumBasis(OrthogonalBasis):
                                 while m <= F:
                                     new_qn = {**qn1_dict, **qn2_dict, J1_symbol: J1, J2_symbol: J2}
                                     v = AngularMomentumState(F, m, other_quantum_numbers= new_qn)
+                                    v.__setattr__(J1_symbol, J1)
+                                    v.__setattr__(J2_symbol, J2)
                                     vectors.append(v)
                                     for qn in new_qn:
                                         setattr(v, qn, new_qn[qn])
