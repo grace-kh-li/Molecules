@@ -59,6 +59,12 @@ class QuantumState:
                     s += "{:.2f} {} + ".format(np.real(self.non_zero_coeffs[i]), str(b))
         return s[:-2]
 
+    def change_basis(self, new_basis, matrix):
+        coeff = np.conj(matrix.T) @ self.coeff
+        qs = QuantumState(self.label, coeff, new_basis, symmetry_group=self.symmetry_group, irrep=self.irrep, Hilbert_space=self.Hilbert_space,sorted=self.sorted)
+        return qs
+
+
     def _get_sorted_by_magnitude(self):
         # Pair each coefficient with its corresponding basis element
         paired = list(zip(self.non_zero_coeffs, self.non_zero_basis))

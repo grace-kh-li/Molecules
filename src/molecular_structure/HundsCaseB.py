@@ -1,3 +1,4 @@
+from src.molecular_structure.RotationalStates import STM_RotationalBasis
 from src.quantum_mechanics.AngularMomentum import *
 
 
@@ -11,26 +12,36 @@ class HundsCaseB_State(AngularMomentumState):
         super().__init__(J, m, J_symbol="J", m_symbol="m", other_quantum_numbers={"N":N,"k":k, "S":S})
 
 class HundsCaseB_Basis(AngularMomentumBasis):
-    def __init__(self, N_range, S_range, k_range=(-100,100), J_range=(-100,100), m_range=(-100,100)):
-        vectors = []
-        for N in range(N_range[0], N_range[1] + 1):
-            for k in range(-N, N + 1):
-                if k_range[0] <= abs(k) <= k_range[1]:
-                    S = S_range[0]
-                    while S <= S_range[1]:
-                        J = max(N, S) - min(N, S)
-                        while J <= N + S:
-                            if J_range[0] <= J <= J_range[1]:
-                                m = -J
-                                while m <= J:
-                                    if m_range[0] <= m <= m_range[1]:
-                                        vectors.append(HundsCaseB_State(N, k, S, J, m))
-                                    m += 1
-                            J += 1
-                        S += 1
-        super().__init__(vectors, "Hund's case B Basis")
-        for v in vectors:
-            v.set_basis(self)
+    def __init__(self, N_range, S_range, k_range=(-100,100)):
+        rot_basis = STM_RotationalBasis(N_range, k_range)
+        es_basis = ElectronicSpinBasis(S_range)
+        self.coupled_basis = rot_basis.couple(es_basis)
+        self.coupled_basis.rename_symbols("J","m")
+        super().__init__(self.coupled_basis.basis_vectors, "Hund's case B Basis")
+        self.coupled = self.coupled_basis.coupled
+        self.tensor_basis = self.coupled_basis.tensor_basis
+        self.uncoupled_bases = self.coupled_basis.uncoupled_bases  # if the current basis came from coupling two angular momentum bases, this keeps track of those two bases.
+        self.basis_change_matrix = self.coupled_basis.basis_change_matrix
+    # def __init__(self, N_range, S_range, k_range=(-100,100), J_range=(-100,100), m_range=(-100,100)):
+    #     vectors = []
+    #     for N in range(N_range[0], N_range[1] + 1):
+    #         for k in range(-N, N + 1):
+    #             if k_range[0] <= abs(k) <= k_range[1]:
+    #                 S = S_range[0]
+    #                 while S <= S_range[1]:
+    #                     J = max(N, S) - min(N, S)
+    #                     while J <= N + S:
+    #                         if J_range[0] <= J <= J_range[1]:
+    #                             m = -J
+    #                             while m <= J:
+    #                                 if m_range[0] <= m <= m_range[1]:
+    #                                     vectors.append(HundsCaseB_State(N, k, S, J, m))
+    #                                 m += 1
+    #                         J += 1
+    #                     S += 1
+    #     super().__init__(vectors, "Hund's case B Basis")
+    #     for v in vectors:
+    #         v.set_basis(self)
 
     def get_N_states(self, N):
         out = []

@@ -1,5 +1,5 @@
 from src.quantum_mechanics.Operator import Operator
-from RotationalStates import STM_RotationalBasis, STM_RotationalState, RotationalBasis, ATM_RotationalBasis
+from src.molecular_structure.RotationalStates import STM_RotationalBasis, STM_RotationalState, RotationalBasis, ATM_RotationalBasis
 import numpy as np
 from src.tools.WignerSymbols import wigner_3j
 

@@ -1,11 +1,15 @@
+from src.molecular_structure.RotationOperators import STM_R2_Operator, MShiftOperator, STM_Ra_Operator, \
+    STM_LoweringOperator, STM_RaisingOperator
 from src.quantum_mechanics.AngularMomentum import AngularMomentumState, AngularMomentumBasis
-from src.molecular_structure.HundsCaseB import HundsCaseB_Basis
 from src.quantum_mechanics.Operator import *
 
 class RotationalState(AngularMomentumState):
-    def __init__(self, R, m, other_qns):
+    def __init__(self, R, m, other_qns, use_N=True):
         self.info = "RotationalState"
-        super().__init__(R, m, "R", "mR", other_qns)
+        if not use_N:
+            super().__init__(R, m, "R", "mR", other_qns)
+        else:
+            super().__init__(R, m, "N", "mN", other_qns)
 
 class RotationalBasis(AngularMomentumBasis):
     def __init__(self, vectors, name):
@@ -21,7 +25,7 @@ class RotationalBasis(AngularMomentumBasis):
 
 
 class STM_RotationalState(RotationalState):
-    def __init__(self, R, k, m):
+    def __init__(self, R, k, m, use_N = True):
         assert R % 1 == 0 # make sure R, k, m are integers
         assert k % 1 == 0
         assert m % 1 == 0
@@ -30,9 +34,11 @@ class STM_RotationalState(RotationalState):
         assert -R <= m <= R
         super().__init__(R,m,{"k":k})
         self.R = R
+        if use_N:
+            self.N = R
         self.k = k
         self.mR = m
-        self.label=f"R={R}, k={k}, mR={m}"
+        self.label=f"{self.J_symbol}={R}, k={k}, {self.m_symbol}={m}"
 
     def __str__(self):
         return "|" + self.label + ">"
@@ -58,80 +64,6 @@ class STM_RotationalBasis(RotationalBasis):
                 out.append(b)
         return out
 
-class STM_RaisingOperator(Operator):
-    def __init__(self, basis):
-        matrix = np.zeros((basis.dimension, basis.dimension), dtype=complex)
-        if isinstance(basis, STM_RotationalBasis):
-            for i, b1 in enumerate(basis):
-                for j, b2 in enumerate(basis):
-                    if b1.R == b2.R and b1.mR == b2.mR and b1.k == b2.k + 1:
-                        R = b2.R
-                        k = b2.k
-                        matrix[i, j] = np.sqrt(R*(R+1) - k * (k+1))
-        elif isinstance(basis, HundsCaseB_Basis):
-            for i, b1 in enumerate(basis):
-                for j, b2 in enumerate(basis):
-                    if b1.N == b2.N and b1.m == b2.m and b1.k == b2.k + 1 and b1.J == b2.J and b1.S == b2.S:
-                        R = b2.N
-                        k = b2.k
-                        matrix[i, j] = np.sqrt(R * (R + 1) - k * (k + 1))
-        super().__init__(basis, matrix)
-
-class STM_LoweringOperator(Operator):
-    def __init__(self, basis):
-        matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        if isinstance(basis, STM_RotationalBasis):
-            for i, b1 in enumerate(basis):
-                for j, b2 in enumerate(basis):
-                    if b1.R == b2.R and b1.mR == b2.mR and b1.k == b2.k - 1:
-                        R = b2.R
-                        k = b2.k
-                        matrix[i, j] = np.sqrt(R*(R+1) - k * (k-1))
-        elif isinstance(basis, HundsCaseB_Basis):
-            for i, b1 in enumerate(basis):
-                for j, b2 in enumerate(basis):
-                    if b1.N == b2.N and b1.m == b2.m and b1.k == b2.k - 1 and b1.J == b2.J and b1.S == b2.S:
-                        R = b2.N
-                        k = b2.k
-                        matrix[i, j] = np.sqrt(R*(R+1) - k * (k-1))
-        super().__init__(basis, matrix)
-
-class STM_R2_Operator(Operator):
-    def __init__(self, basis):
-        matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        if isinstance(basis, STM_RotationalBasis):
-            for i, b1 in enumerate(basis):
-                matrix[i,i] = b1.R * (b1.R + 1)
-        elif isinstance(basis, HundsCaseB_Basis):
-            for i, b1 in enumerate(basis):
-                matrix[i,i] = b1.N * (b1.N + 1)
-        super().__init__(basis, matrix)
-
-class STM_Ra_Operator(Operator):
-    def __init__(self, basis):
-        matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        for i, b1 in enumerate(basis):
-            matrix[i,i] = b1.k
-        super().__init__(basis, matrix)
-
-class MShiftOperator(Operator):
-    def __init__(self, basis):
-        matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        if isinstance(basis, STM_RotationalBasis):
-            for i, b1 in enumerate(basis):
-                matrix[i,i] = b1.mR
-        else:
-            for i, b1 in enumerate(basis):
-                matrix[i,i] = b1.m
-        super().__init__(basis, matrix)
-
-class JShiftOperator(Operator):
-    def __init__(self, basis):
-        matrix = np.zeros((basis.dimension, basis.dimension),dtype=complex)
-        if hasattr(basis[0], "J"):
-            for i, b1 in enumerate(basis):
-                matrix[i,i] = b1.J
-        super().__init__(basis, matrix)
 
 class Linear_RotationalState(STM_RotationalState):
     def __init__(self, R, m):

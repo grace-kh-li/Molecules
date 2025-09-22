@@ -1,4 +1,5 @@
 from src.quantum_mechanics.Basis import *
+from src.quantum_mechanics.Operator import Operator
 
 
 class VibronicState(BasisVector):
@@ -29,3 +30,10 @@ class VibrationalState(BasisVector):
                 label = "v=0"
         super().__init__(label)
         self.quantum_numbers = {"v": label}
+
+class OffsetOperator(Operator):
+    def __init__(self, basis, energy_dict):
+        matrix = np.zeros((basis.dimension, basis.dimension), dtype=np.complex128)
+        for i, b in enumerate(basis):
+            matrix[i,i] = energy_dict[b.quantum_numbers["elec"]]
+        super().__init__(basis, matrix)

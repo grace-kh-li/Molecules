@@ -1,14 +1,16 @@
 import numpy as np
 
-from src.molecular_structure.RotationalStates import STM_RaisingOperator, STM_LoweringOperator, STM_R2_Operator, \
-    STM_Ra_Operator, STM_RotationalBasis
+from src.molecular_structure.HundsCaseB import HundsCaseB_Basis
+from src.molecular_structure.RotationalStates import STM_RotationalBasis
+from src.molecular_structure.RotationOperators import STM_RaisingOperator, STM_LoweringOperator, STM_R2_Operator, \
+    STM_Ra_Operator
 from src.molecular_structure.VibronicStates import VibronicState
 from src.quantum_mechanics.Operator import Operator
 
 class Rotational_Hamiltonian(Operator):
     def __init__(self, basis, A, BC_avg2, BC_diff4):
         """ The basis must be an STM basis. """
-        assert isinstance(basis, STM_RotationalBasis)
+        # assert isinstance(basis, STM_RotationalBasis) or isinstance(basis, HundsCaseB_Basis)
         J_p = STM_RaisingOperator(basis)
         J_m = STM_LoweringOperator(basis)
         R2 = STM_R2_Operator(basis)
@@ -22,22 +24,21 @@ class Rotational_Hamiltonian_evr(Operator):
         The basis must be vibronic x STM. The parameters for each electronic state is given in the input
         dictionaries {electronic state name: parameter value}.
         """
-        assert len(basis.tensor_components) == 2
-        assert isinstance(basis.tensor_components[0], STM_RotationalBasis)
-        assert isinstance(basis.tensor_components[1][0], VibronicState)
-        vibronic_basis = basis.tensor_components[1]
-        rot_basis = basis.tensor_components[0]
+
+        vibronic_states = []
 
         rot_Hamiltonians = {}
-        for ev_state in vibronic_basis:
-            elec = ev_state.label
-            rot_Hamiltonians[elec] = Rotational_Hamiltonian(rot_basis, A_dict[elec], BC_avg2_dict[elec], BC_diff4_dict[elec])
+        for s in basis:
+            elec = s.quantum_numbers["elec"]
+            if elec not in vibronic_states:
+                rot_Hamiltonians[elec] = Rotational_Hamiltonian(basis, A_dict[elec], BC_avg2_dict[elec],
+                                                                BC_diff4_dict[elec])
+                vibronic_states.append(elec)
 
-        matrix = np.zeros((basis.dimension, basis.dimension),dtype=np.complex128)
+        matrix = np.zeros((basis.dimension, basis.dimension), dtype=np.complex128)
         for i, b in enumerate(basis):
-            b_rot = b.tensor_components[0]
             for j, b1 in enumerate(basis):
                 if b.quantum_numbers["elec"] == b1.quantum_numbers["elec"]:
-                    matrix[i,j] = rot_Hamiltonians[b.quantum_numbers["elec"]][b,b1]
+                    matrix[i, j] = rot_Hamiltonians[b.quantum_numbers["elec"]][i, j]
 
         super().__init__(basis, matrix)
