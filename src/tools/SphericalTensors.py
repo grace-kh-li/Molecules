@@ -54,7 +54,7 @@ class SphericalTensor:
             self.tensors = [T1]
             T1[0] = T[2]
             T1[-1] = (T[0] - T[1]*1j) * 1/np.sqrt(2)
-            T1[1] = (T[0] + T[1]*1j) *  (-1/np.sqrt(2) )
+            T1[1] = (T[0] + T[1]*1j) *  (-1/np.sqrt(2))
 
     def __getitem__(self, i):
         for t in self.tensors:
@@ -69,10 +69,32 @@ class SphericalTensor_prolate(SphericalTensor):
             xyz = np.array([T[1],T[2],T[0]])
             super().__init__(xyz, is_operator=is_operator, operator_basis=operator_basis)
         if T.shape == (3,3):
-            xyz = np.zeros((3,3))
+            if is_operator:
+                xyz = np.zeros((3,3),dtype=object)
+            else:
+                xyz = np.zeros((3,3), dtype=np.complex128)
             for i in range(3):
                 for j in range(3):
                     i1 = (i-1) % 3
+                    print(i, i1)
                     j1 = (j-1) % 3
                     xyz[i1,j1] = T[i,j]
             super().__init__(xyz, is_operator=is_operator, operator_basis=operator_basis)
+
+if __name__ == "__main__":
+    from src.molecular_structure.VibronicStates import VibronicState
+
+    X = VibronicState("X")
+    A = VibronicState("A")
+    B = VibronicState("B")
+    vibronic_basis = OrthogonalBasis([X, A, B], "Electronic")
+    vibronic_d_a = Operator(vibronic_basis, np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]]))
+    vibronic_d_b = Operator(vibronic_basis, np.array([[0, 1, 0], [1, 0, 0], [0, 0, 0]]))
+    vibronic_d_c = Operator(vibronic_basis, np.array([[0, 0, 1], [0, 0, 0], [1, 0, 0]]))
+
+    # the transition dipole moment in molecule frame as a spherical tensor
+    vibronic_d = SphericalTensor_prolate(np.array([vibronic_d_a, vibronic_d_b, vibronic_d_c]), is_operator=True,
+                                         operator_basis=vibronic_basis)
+
+    print(vibronic_d[1][1])
+    print(vibronic_d[1][-1])

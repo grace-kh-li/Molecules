@@ -14,17 +14,17 @@ class DipoleOperator(Operator):
 
 
 
-# class DipoleOperator_STM(DipoleOperator):
-#     """ Electric dipole moment operator, for STM basis """
-#     def __init__(self, basis, dipole_mol, sigma_space, symmetry_group=None, irrep=None):
-#         """ STM basis, rotational transitions """
-#         matrix = np.zeros((len(basis), len(basis)), dtype=np.complex128)
-#         for sigma_mol in (-1, 0, 1):
-#             D = D_matrix_conj(basis, sigma_space, sigma_mol)
-#             for i, b in enumerate(basis):
-#                 for i1, b1 in enumerate(basis):
-#                     matrix[i,i1] += dipole_mol[1][sigma_mol] * D[i,i1]
-#         super().__init__(sigma_space, basis, matrix, symmetry_group, irrep)
+class DipoleOperator_STM(DipoleOperator):
+    """ Electric dipole moment operator, for STM basis """
+    def __init__(self, basis, dipole_mol, sigma_space, symmetry_group=None, irrep=None):
+        """ STM basis, rotational transitions """
+        matrix = np.zeros((len(basis), len(basis)), dtype=np.complex128)
+        for sigma_mol in (-1, 0, 1):
+            D = D_matrix_conj(basis, sigma_space, sigma_mol)
+            for i, b in enumerate(basis):
+                for i1, b1 in enumerate(basis):
+                    matrix[i,i1] += dipole_mol[1][sigma_mol] * D[i,i1]
+        super().__init__(sigma_space, basis, matrix, symmetry_group, irrep)
 
 
 class DipoleOperator_evr(DipoleOperator):

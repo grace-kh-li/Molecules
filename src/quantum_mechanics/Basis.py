@@ -105,7 +105,7 @@ class QuantumState:
         self.sorted = sorted
 
         for i, b in enumerate(self.defining_basis):
-            if np.abs(self.coeff[i]) > 1e-6:
+            if np.abs(self.coeff[i]) > 1e-5:
                 self.non_zero_basis.append(b)
                 self.non_zero_coeffs.append(coeff[i])
 

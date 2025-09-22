@@ -170,3 +170,63 @@ class ATM_RotationalBasis(RotationalBasis):
                 return s
         print("State not found.")
         return None
+
+def dict_to_tuple(dict, exclude_list):
+    a = []
+    for key in dict:
+        if key not in exclude_list:
+            a.append(dict[key])
+    return tuple(a)
+
+def rename_ATM_states(states):
+    qn_dict = {} # dictionary {quantum number tuple : states}. # This is to separate states with different quantum numbers so that each of these subspaces can be sorted into ATM states.
+
+    for s in states:
+        qn_tuple = dict_to_tuple(s[0].quantum_numbers, ("N","k","R"))
+        if qn_tuple not in qn_dict:
+            qn_dict[qn_tuple] = [s]
+        else:
+            qn_dict[qn_tuple].append(s)
+
+    for qn in qn_dict:
+        N_dict = {}
+        for s in qn_dict[qn]: # sort the states with this set of qns into N stacks
+            N = s[0].N
+            if N not in N_dict:
+                N_dict[N] = [s]
+            else:
+                N_dict[N].append(s)
+
+        for N in N_dict:
+            ka = 0
+            i = 0
+            last_state = None
+            while i < len(N_dict[N]):
+                s = N_dict[N][i]
+                s.ka = ka
+                if ka == 0:
+                    s.ka = ka
+                    s.kc = N
+                    i += 1
+                    ka += 1
+                else:
+                    if last_state.ka == ka:
+                        s.ka = ka
+                        s.kc = N - ka
+                        i += 1
+                        ka += 1
+                    else:
+                        s.ka = ka
+                        s.kc = N + 1 - ka
+                        i += 1
+                last_state = s
+                s.label = ""
+                qns = s[0].quantum_numbers
+                for qn in qns:
+                    if qn not in ("N","k","R","J","m","mJ"):
+                        s.label += f"{qn} = {qns[qn]}, "
+                s.label += f"N={N}, ka={s.ka}, kc={s.kc}, "
+                for qn in qns:
+                    if qn in ("J","mJ","m","F"):
+                        s.label += f"{qn} = {qns[qn]}, "
+                s.label = s.label[:-2]

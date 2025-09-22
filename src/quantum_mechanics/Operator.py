@@ -9,12 +9,16 @@ class Operator:
         self.irrep = irrep
 
     def matrix_element(self, state1, state2):
-        return np.conj(state1.coeff) @ self.matrix @ state2.coeff
+        assert state1.defining_basis == self.basis == state2.defining_basis
+        return np.conj(state1.coeff.T) @ self.matrix @ state2.coeff
 
     def __getitem__(self, key):
         s1, s2 = key
         if isinstance(s1, int) and isinstance(s2, int):
             return self.matrix[s1, s2]
+        elif isinstance(s1, BasisVector) and isinstance(s2, BasisVector):
+            assert s1 in self.basis and s2 in self.basis
+            return self.matrix[self.basis.get_index(s1), self.basis.get_index(s2)]
         elif isinstance(s1, QuantumState) and isinstance(s2, QuantumState):
             return self.matrix_element(s1, s2)
         else:
@@ -39,7 +43,7 @@ class Operator:
 
     def __sub__(self, other):
         assert self.basis == other.basis
-        return Operator(self.basis, self.matrix)
+        return Operator(self.basis, self.matrix - other.matrix)
 
     def __mul__(self, other):
         if isinstance(other, Operator):
