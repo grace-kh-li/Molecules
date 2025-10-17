@@ -191,12 +191,12 @@ class CaNH2_molecule(ATM_molecule):
         offset_dict["X"] = 0.0
 
         # A state constants
-        A_dict["A"] = 11.44854
-        BC_avg2_dict["A"] = 0.303107
-        BC_diff4_dict["A"] = 1.958e-3
-        e_aa_dict["A"] = 8.2369
-        e_bb_dict["A"] = 3.0534e-2 - 1.2617e-2 * 2
-        e_cc_dict["A"] = 3.0534e-2 + 1.2617e-2 * 2
+        A_dict["A"] = wavenumber_to_GHz(11.44854)
+        BC_avg2_dict["A"] = wavenumber_to_GHz(0.303107)
+        BC_diff4_dict["A"] = wavenumber_to_GHz(1.958e-3)
+        e_aa_dict["A"] = wavenumber_to_GHz(8.2369)
+        e_bb_dict["A"] = wavenumber_to_GHz(3.0534e-2 - 1.2617e-2 * 2)
+        e_cc_dict["A"] = wavenumber_to_GHz(3.0534e-2 + 1.2617e-2 * 2)
         offset_dict["A"] = (wavenumber_to_Hz(15464.36739) - 192e6) / 1e9
 
         # B state constants
