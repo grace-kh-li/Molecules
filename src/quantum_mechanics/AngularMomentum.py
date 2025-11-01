@@ -1,5 +1,6 @@
 from src.quantum_mechanics.Basis import *
 from src.tools.WignerSymbols import wigner_3j
+from src.quantum_mechanics.Operator import Operator
 
 class AngularMomentumState(BasisVector):
     def __init__(self, J, m, J_symbol="J_total", m_symbol="m_total", other_quantum_numbers = None):
@@ -222,16 +223,47 @@ class AngularMomentumBasis(OrthogonalBasis):
             b.set_basis(self)
 
 
+class AngularMomentumOperator(Operator):
+    def __init__(self, basis, axis):
+        assert isinstance(basis, AngularMomentumBasis)
+        matrix = np.zeros((len(basis), len(basis)), dtype=np.complex128)
+        if axis == 0 or axis == "z" or axis == "Z":
+            for i, s1 in enumerate(basis):
+                J1, m1 = s1.J_total, s1.m_total
+                matrix[i,i] = m1
+        elif axis == 1: # raising operator
+            for i1, s1 in enumerate(basis):
+                J1, m1 = s1.J_total, s1.m_total
+                for i2, s2 in enumerate(basis):
+                    J2, m2 = s2.J_total, s2.m_total
+                    if J1 == J2 and m1 == m2 + 1:
+                        matrix[i1, i2] = np.sqrt((J2 - m2) * (J2 + m2 + 1))
+        elif axis == -1: # lowering operator
+            for i1, s1 in enumerate(basis):
+                J1, m1 = s1.J_total, s1.m_total
+                for i2, s2 in enumerate(basis):
+                    J2, m2 = s2.J_total, s2.m_total
+                    if J1 == J2 and m1 == m2 - 1:
+                        matrix[i1, i2] = np.sqrt((J2 + m2) * (J2 - m2 + 1))
+        elif axis == "x" or axis == "X" or axis == "y" or axis == "Y":
+            Jp = AngularMomentumOperator(basis, 1)
+            Jm = AngularMomentumOperator(basis, -1)
+            if axis == "x" or axis == "X":
+                matrix = ((Jp + Jm)/2).matrix
+            else:
+                matrix = ((Jp - Jm)/(2j)).matrix
+        else:
+            raise NotImplementedError("axis must be 0,-1,1, or x, y, z!")
+
+        super().__init__(basis, matrix)
+
+
 class ElectronicSpinState(AngularMomentumState):
     def __init__(self, S, ms):
-        self.S = S
-        self.ms = ms
         super().__init__(S,ms, "S", "ms")
 
 class NuclearSpinState(AngularMomentumState):
     def __init__(self, I, mI):
-        self.I = I
-        self.mI = mI
         super().__init__(I, mI, "I", "mI")
 
 class ElectronicSpinBasis(AngularMomentumBasis):
