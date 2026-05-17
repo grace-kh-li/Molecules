@@ -102,8 +102,8 @@ class ATM_molecule:
         from src.molecular_structure.Zeeman import ZeemanHamiltonian_es
         self.Zeeman_terms = {}
         for i in ("x", "y", "z"):
-            Zeeman_evr = ZeemanHamiltonian_es(self.evr_basis, "z")
-            Zeeman_es = ZeemanHamiltonian_es(self.es_basis, "z")
+            Zeeman_evr = ZeemanHamiltonian_es(self.evr_basis, i)
+            Zeeman_es = ZeemanHamiltonian_es(self.es_basis, i)
             Zeeman_uncoupled = Zeeman_evr.tensor(Zeeman_es)
             Zeeman = Zeeman_uncoupled.change_basis(self.caseB_basis, self.caseB_basis.get_basis_change_matrix())
             self.Zeeman_terms[i] = Zeeman
@@ -212,7 +212,7 @@ class CaNH2_molecule(ATM_molecule):
         e_aa_dict["A"] = wavenumber_to_MHz(8.2369)
         e_bb_dict["A"] = wavenumber_to_MHz(3.0534e-2 - 1.2617e-2 * 2)
         e_cc_dict["A"] = wavenumber_to_MHz(3.0534e-2 + 1.2617e-2 * 2)
-        offset_dict["A"] = (wavenumber_to_Hz(15464.36739) - 192e6) / 1e6
+        offset_dict["A"] = (wavenumber_to_Hz(15464.36739) - 192e6 + 65e6) / 1e6
 
         # B state constants
         A_dict["B"] = wavenumber_to_MHz(14.3664)
