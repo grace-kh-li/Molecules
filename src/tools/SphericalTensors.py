@@ -76,7 +76,6 @@ class SphericalTensor_prolate(SphericalTensor):
             for i in range(3):
                 for j in range(3):
                     i1 = (i-1) % 3
-                    print(i, i1)
                     j1 = (j-1) % 3
                     xyz[i1,j1] = T[i,j]
             super().__init__(xyz, is_operator=is_operator, operator_basis=operator_basis)

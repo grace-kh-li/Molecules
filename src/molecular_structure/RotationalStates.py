@@ -65,9 +65,52 @@ class STM_RotationalBasis(RotationalBasis):
         return out
 
 
-class Linear_RotationalState(STM_RotationalState):
-    def __init__(self, R, m):
-        super().__init__(R, 0, m)
+class Linear_RotationalState(RotationalState):
+    def __init__(self, R, m, STM_basis=None, STM_coeff=None, E=0.0, use_N=True):
+        assert R % 1 == 0
+        assert m % 1 == 0
+        assert R >= 0
+        assert -R <= m <= R
+        super().__init__(R, m, {"k": 0}, use_N=use_N)
+        self.R = R
+        if use_N:
+            self.N = R
+        self.k = 0
+        self.mR = m
+        self.E = E
+        self.label = f"{self.J_symbol}={R}, k=0, {self.m_symbol}={m}"
+        if STM_basis is not None and STM_coeff is not None:
+            self.set_defining_basis(STM_basis, STM_coeff)
+
+    def __str__(self):
+        return "|" + self.label + ">"
+
+
+class Linear_RotationalBasis(RotationalBasis):
+    def __init__(self, R_range, m_range=(-100,100), use_N=True):
+        self.STM_basis = STM_RotationalBasis(R_range=R_range, k_range=(0, 0), m_range=m_range)
+        basis_vectors = []
+        for i, stm_state in enumerate(self.STM_basis):
+            coeff = np.zeros(self.STM_basis.dimension)
+            coeff[i] = 1
+            basis_vectors.append(
+                Linear_RotationalState(
+                    stm_state.R,
+                    stm_state.mR,
+                    STM_basis=self.STM_basis,
+                    STM_coeff=coeff,
+                    use_N=use_N,
+                )
+            )
+        self.STM_basis_change_matrix = np.column_stack([b.coeff for b in basis_vectors])
+        super().__init__(basis_vectors, "Linear rotational basis")
+
+    def get_state(self, R, m):
+        for s in self.basis_vectors:
+            if s.R == R and s.mR == m:
+                return s
+        print("State not found.")
+        return None
 
 class ATM_RotationalState(RotationalState):
     def __init__(self, R, ka, kc, m, STM_basis=None, STM_coeff=None, E=0.0):

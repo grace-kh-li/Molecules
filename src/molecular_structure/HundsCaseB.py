@@ -1,4 +1,6 @@
-from src.molecular_structure.RotationalStates import STM_RotationalBasis
+import numpy as np
+
+from src.molecular_structure.RotationalStates import Linear_RotationalBasis, STM_RotationalBasis
 from src.quantum_mechanics.AngularMomentum import *
 
 
@@ -12,16 +14,21 @@ class HundsCaseB_State(AngularMomentumState):
         super().__init__(J, m, J_symbol="J", m_symbol="m", other_quantum_numbers={"N":N,"k":k, "S":S})
 
 class HundsCaseB_Basis(AngularMomentumBasis):
-    def __init__(self, N_range, S_range, k_range=(-100,100)):
+    def __init__(self, N_range, S_range, k_range=(-100,100), J_range=(-100,100), m_range=(-100,100)):
         rot_basis = STM_RotationalBasis(N_range, k_range)
         es_basis = ElectronicSpinBasis(S_range)
         self.coupled_basis = rot_basis.couple(es_basis)
         self.coupled_basis.rename_symbols("J","m")
-        super().__init__(self.coupled_basis.basis_vectors, "Hund's case B Basis")
+        row_indices = [
+            i for i, b in enumerate(self.coupled_basis.basis_vectors)
+            if J_range[0] <= b.J_total <= J_range[1] and m_range[0] <= b.m_total <= m_range[1]
+        ]
+        basis_vectors = [self.coupled_basis.basis_vectors[i] for i in row_indices]
+        super().__init__(basis_vectors, "Hund's case B Basis")
         self.coupled = self.coupled_basis.coupled
         self.tensor_basis = self.coupled_basis.tensor_basis
         self.uncoupled_bases = self.coupled_basis.uncoupled_bases  # if the current basis came from coupling two angular momentum bases, this keeps track of those two bases.
-        self.basis_change_matrix = self.coupled_basis.basis_change_matrix
+        self.basis_change_matrix = self.coupled_basis.basis_change_matrix[row_indices, :]
     # def __init__(self, N_range, S_range, k_range=(-100,100), J_range=(-100,100), m_range=(-100,100)):
     #     vectors = []
     #     for N in range(N_range[0], N_range[1] + 1):
@@ -42,6 +49,24 @@ class HundsCaseB_Basis(AngularMomentumBasis):
     #     super().__init__(vectors, "Hund's case B Basis")
     #     for v in vectors:
     #         v.set_basis(self)
+
+    def get_caseA_basis_change_matrix(self, caseA_basis):
+        """Return a matrix mapping coefficients in this case B basis to case A."""
+        from src.molecular_structure.HundsCaseTransforms import caseB_to_caseA_matrix
+
+        return caseB_to_caseA_matrix(self, caseA_basis)
+
+    def get_caseB_basis_change_matrix(self, caseA_basis):
+        """Return a matrix mapping coefficients from case A into this case B basis."""
+        from src.molecular_structure.HundsCaseTransforms import caseA_to_caseB_matrix
+
+        return caseA_to_caseB_matrix(caseA_basis, self)
+
+    def change_basis_to_caseA(self, caseA_basis):
+        return self.get_caseA_basis_change_matrix(caseA_basis)
+
+    def change_basis_from_caseA(self, caseA_basis):
+        return self.get_caseB_basis_change_matrix(caseA_basis)
 
     def get_N_states(self, N):
         out = []
@@ -78,24 +103,82 @@ class HundsCaseB_Basis(AngularMomentumBasis):
                 out.append(b)
         return out
 
+
+class STM_HundsCaseB_Basis(HundsCaseB_Basis):
+    pass
+
+
+class Linear_HundsCaseB_Basis(HundsCaseB_Basis):
+    def __init__(self, N_range, S_range, J_range=(-100,100), m_range=(-100,100), mN_range=(-100,100)):
+        self.rot_basis = Linear_RotationalBasis(N_range, m_range=mN_range)
+        self.es_basis = ElectronicSpinBasis(S_range)
+        self.coupled_basis = self.rot_basis.couple(self.es_basis)
+        self.coupled_basis.rename_symbols("J", "m")
+
+        row_indices = [
+            i for i, b in enumerate(self.coupled_basis.basis_vectors)
+            if J_range[0] <= b.J_total <= J_range[1] and m_range[0] <= b.m_total <= m_range[1]
+        ]
+        basis_vectors = [self.coupled_basis.basis_vectors[i] for i in row_indices]
+        AngularMomentumBasis.__init__(self, basis_vectors, "Linear Hund's case B Basis")
+
+        stm_to_linear = self.rot_basis.STM_basis_change_matrix
+        linear_spin_to_stm_spin = np.kron(stm_to_linear, np.eye(self.es_basis.dimension))
+        linear_spin_rows = self.coupled_basis.basis_change_matrix[row_indices, :]
+        self.basis_change_matrix = linear_spin_rows @ linear_spin_to_stm_spin.conj().T
+        self.tensor_basis = self.rot_basis.STM_basis * self.es_basis
+        self.uncoupled_bases = [self.rot_basis.STM_basis, self.es_basis]
+        self.coupled = True
+
+        for i, b in enumerate(self.basis_vectors):
+            b.set_defining_basis(self.tensor_basis, self.basis_change_matrix[i, :])
+
+    def get_N_states(self, N):
+        out = []
+        for b in self.basis_vectors:
+            if b.N == N:
+                out.append(b)
+        return out
+
+    def get_S_states(self, S):
+        out = []
+        for b in self.basis_vectors:
+            if b.S == S:
+                out.append(b)
+        return out
+
+    def get_J_states(self, J):
+        out = []
+        for b in self.basis_vectors:
+            if b.J_total == J:
+                out.append(b)
+        return out
+
+    def get_m_states(self, m):
+        out = []
+        for b in self.basis_vectors:
+            if b.m_total == m:
+                out.append(b)
+        return out
+
 class HundsCaseB_Basis_with_NS(AngularMomentumBasis):
     def __init__(self, N_range, S_range,I_range, k_range=(-100,100), J_range=(-100,100), F_range=(-100,100), m_range=(-100,100)):
         b_ns = NuclearSpinBasis(I_range, [-I_range[1], I_range[1]])
         b_B = HundsCaseB_Basis(N_range=N_range, k_range=k_range, S_range=S_range, J_range=J_range, m_range=[-J_range[1],J_range[1]])
-        product = b_ns * b_B
+        product = b_B.couple(b_ns)
         vectors = []
         for b in product.basis_vectors:
             if m_range[0] <= b.m_total <= m_range[1] and F_range[0] <= b.J_total <= F_range[1]:
                 b.F = b.J_total
-                # b.J = b.other_quantum_numbers["J"]
-                # b.N = b.other_quantum_numbers["N"]
-                # b.k = b.other_quantum_numbers["k"]
-                # b.S = b.other_quantum_numbers["S"]
-                # b.I = b.other_quantum_numbers["I"]
                 b.m = b.m_total
                 b.rename_symbols("F","mF")
                 vectors.append(b)
         super().__init__(vectors, "Hund's case B Basis with nuclear spin")
+        self.coupled = product.coupled
+        self.tensor_basis = product.tensor_basis
+        self.uncoupled_bases = product.uncoupled_bases
+        row_indices = [product.basis_vectors.index(b) for b in vectors]
+        self.basis_change_matrix = product.basis_change_matrix[row_indices, :]
 
     def get_I_states(self, I):
         out = []

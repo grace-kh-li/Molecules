@@ -291,8 +291,9 @@ class LieAlgebra:
     def Lie_bracket(self, g1, g2):
         if not g1.Lie_algebra == g2.Lie_algebra == self:
             raise ValueError("Lie-algebra mismatch.")
-        g3 = LieAlgebraElement(f"[{g1.name},{g2.name}]", g1.matrix * g2.matrix - g2.matrix * g1.matrix)
+        g3 = LieAlgebraElement(f"[{g1.name},{g2.name}]", g1.matrix @ g2.matrix - g2.matrix @ g1.matrix)
         g3.Lie_algebra = self
+        return g3
 
     def __getitem__(self, i):
         return self.basis_elements[i]

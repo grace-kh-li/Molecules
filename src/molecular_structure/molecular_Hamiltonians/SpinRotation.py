@@ -233,20 +233,20 @@ class Spin_Rotation_Hamiltonian_evCaseB(Operator):
         The basis must be case B * vibronic. The parameters for each electronic state is given in the input
         dictionaries {electronic state name: parameter value}.
         """
-        vibronic_states = []
-
+        param_cache = {}
         SR_Hamiltonians = {}
         for s in basis:
             elec = s.quantum_numbers["elec"]
-            if elec not in vibronic_states:
-                SR_Hamiltonians[elec] = SpinRotationHamiltonian(basis, e_aa_dict[elec], e_bb_dict[elec], e_cc_dict[elec])
-                vibronic_states.append(elec)
+            if elec not in SR_Hamiltonians:
+                params = (e_aa_dict[elec], e_bb_dict[elec], e_cc_dict[elec])
+                if params not in param_cache:
+                    param_cache[params] = SpinRotationHamiltonian(basis, *params)
+                SR_Hamiltonians[elec] = param_cache[params]
 
         matrix = np.zeros((basis.dimension, basis.dimension),dtype=np.complex128)
-        for i, b in enumerate(basis):
-            for j, b1 in enumerate(basis):
-                if b.quantum_numbers["elec"] == b1.quantum_numbers["elec"]:
-                    matrix[i,j] = SR_Hamiltonians[b.quantum_numbers["elec"]][i,j]
+        for elec, H in SR_Hamiltonians.items():
+            indices = [i for i, b in enumerate(basis) if b.quantum_numbers["elec"] == elec]
+            matrix[np.ix_(indices, indices)] = H.matrix[np.ix_(indices, indices)]
         self.SR_Hamiltonians = SR_Hamiltonians
 
         super().__init__(basis, matrix)

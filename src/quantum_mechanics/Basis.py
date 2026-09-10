@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 class QuantumState:
     def __init__(self, name, coeff, basis, sorted=False, Hilbert_space=None, symmetry_group=None, irrep=None):
@@ -25,17 +26,26 @@ class QuantumState:
 
     def __add__(self, other):
         assert self.defining_basis == other.defining_basis # todo: add change of basis
-        return QuantumState(self.coeff + other.coeff, self.defining_basis)
+        return QuantumState(f"{self.label} + {other.label}", self.coeff + other.coeff, self.defining_basis,
+                            sorted=self.sorted, Hilbert_space=self.Hilbert_space,
+                            symmetry_group=self.symmetry_group, irrep=self.irrep)
 
     def __mul__(self, c):
-        return QuantumState(self.coeff * c, self.defining_basis)
+        return QuantumState(self.label, self.coeff * c, self.defining_basis, sorted=self.sorted,
+                            Hilbert_space=self.Hilbert_space, symmetry_group=self.symmetry_group, irrep=self.irrep)
+
+    def __rmul__(self, c):
+        return self * c
 
     def __truediv__(self,c):
-        return QuantumState(self.coeff / c, self.defining_basis)
+        return QuantumState(self.label, self.coeff / c, self.defining_basis, sorted=self.sorted,
+                            Hilbert_space=self.Hilbert_space, symmetry_group=self.symmetry_group, irrep=self.irrep)
 
     def __sub__(self, other):
         assert self.defining_basis == other.defining_basis  # todo: add change of basis
-        return QuantumState(self.coeff - other.coeff, self.defining_basis)
+        return QuantumState(f"{self.label} - {other.label}", self.coeff - other.coeff, self.defining_basis,
+                            sorted=self.sorted, Hilbert_space=self.Hilbert_space,
+                            symmetry_group=self.symmetry_group, irrep=self.irrep)
 
     def project_onto(self, other):
         assert self.defining_basis == other.defining_basis  # todo: add change of basis
@@ -102,16 +112,14 @@ class QuantumState:
 
         self.non_zero_coeffs = []
         self.non_zero_basis = []
-        self.sorted = sorted
 
         for i, b in enumerate(self.defining_basis):
             if np.abs(self.coeff[i]) > 1e-5:
                 self.non_zero_basis.append(b)
-                self.non_zero_coeffs.append(coeff[i])
+                self.non_zero_coeffs.append(self.coeff[i])
 
         if self.sorted:
-            if sorted:
-                self.non_zero_coeffs, self.non_zero_basis = self._get_sorted_by_magnitude()
+            self.non_zero_coeffs, self.non_zero_basis = self._get_sorted_by_magnitude()
 
     def sort(self):
         """ Sort the printed state based on the magnitude of the basis vectors. """
@@ -144,7 +152,7 @@ class BasisVector(QuantumState):
             super().set_defining_basis(basis, coeff)
 
     def dot(self, other):
-        if self.basis != other.states:
+        if self.basis != other.basis:
             raise ValueError("Dot product between basis vectors is not defined")
         else:
             if self.label == other.label:
@@ -165,8 +173,20 @@ class BasisVector(QuantumState):
     def __eq__(self, other):
         return self.label == other.label
 
-    # def copy(self):
-    #     b = BasisVector(self.label)
+    def copy(self):
+        b = copy.copy(self)
+        b.basis = None
+        b.defining_basis = None
+        b.coeff = None
+        b.non_zero_coeffs = []
+        b.non_zero_basis = []
+        b.quantum_numbers = dict(self.quantum_numbers)
+        b.tensor_components = [b]
+        if hasattr(self, "other_quantum_numbers"):
+            b.other_quantum_numbers = dict(self.other_quantum_numbers)
+        if hasattr(b, "AM_tensor_components"):
+            b.AM_tensor_components = [b]
+        return b
 
     def reorder_quantum_numbers(self):
         if len(self.quantum_numbers) == 0:
@@ -284,6 +304,4 @@ class HilbertSpace:
 
     def change_to_basis(self, vector, new_basis):
         pass
-
-
 

@@ -25,20 +25,29 @@ class Rotational_Hamiltonian_evr(Operator):
         dictionaries {electronic state name: parameter value}.
         """
 
-        vibronic_states = []
+        J_p = STM_RaisingOperator(basis)
+        J_m = STM_LoweringOperator(basis)
+        R2 = STM_R2_Operator(basis)
+        Ra = STM_Ra_Operator(basis)
+        Ra2_matrix = (Ra * Ra).matrix
+        asym_matrix = (J_p * J_p + J_m * J_m).matrix
 
-        rot_Hamiltonians = {}
+        vibronic_states = []
         for s in basis:
             elec = s.quantum_numbers["elec"]
             if elec not in vibronic_states:
-                rot_Hamiltonians[elec] = Rotational_Hamiltonian(basis, A_dict[elec], BC_avg2_dict[elec],
-                                                                BC_diff4_dict[elec])
                 vibronic_states.append(elec)
 
         matrix = np.zeros((basis.dimension, basis.dimension), dtype=np.complex128)
-        for i, b in enumerate(basis):
-            for j, b1 in enumerate(basis):
-                if b.quantum_numbers["elec"] == b1.quantum_numbers["elec"]:
-                    matrix[i, j] = rot_Hamiltonians[b.quantum_numbers["elec"]][i, j]
+        self.rot_Hamiltonians = {}
+        for elec in vibronic_states:
+            H_matrix = (
+                Ra2_matrix * (A_dict[elec] - BC_avg2_dict[elec])
+                + R2.matrix * BC_avg2_dict[elec]
+                + asym_matrix * BC_diff4_dict[elec]
+            )
+            self.rot_Hamiltonians[elec] = Operator(basis, H_matrix)
+            indices = [i for i, b in enumerate(basis) if b.quantum_numbers["elec"] == elec]
+            matrix[np.ix_(indices, indices)] = H_matrix[np.ix_(indices, indices)]
 
         super().__init__(basis, matrix)

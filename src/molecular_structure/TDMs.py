@@ -1,5 +1,6 @@
 from src.quantum_mechanics.Operator import Operator
-from src.molecular_structure.RotationalStates import STM_RotationalBasis, STM_RotationalState, RotationalBasis, ATM_RotationalBasis
+from src.molecular_structure.RotationalStates import STM_RotationalBasis, STM_RotationalState, RotationalBasis, \
+    ATM_RotationalBasis, Linear_RotationalBasis
 import numpy as np
 from src.tools.WignerSymbols import wigner_3j
 
@@ -34,15 +35,15 @@ class DipoleOperator_evr(DipoleOperator):
         rot_basis = basis.tensor_components[0]
         if isinstance(rot_basis, STM_RotationalBasis):
             STM_basis = rot_basis
-        elif isinstance(rot_basis, ATM_RotationalBasis):
+        elif isinstance(rot_basis, (ATM_RotationalBasis, Linear_RotationalBasis)):
             STM_basis = rot_basis.STM_basis
         else:
-            raise TypeError("The rotational state must be either STM or ATM!")
+            raise TypeError("The rotational state must be STM, ATM, or linear rotational basis!")
 
         for sigma_mol in (-1, 0, 1):
             D = D_matrix_conj(STM_basis, sigma_space, sigma_mol)
             d_ev = dipole_mol[1][sigma_mol]
-            if isinstance(rot_basis, ATM_RotationalBasis):
+            if isinstance(rot_basis, (ATM_RotationalBasis, Linear_RotationalBasis)):
                 D = D.change_basis(rot_basis,rot_basis.STM_basis_change_matrix.conj().T)
             matrix += np.kron(D.matrix, d_ev.matrix)
         super().__init__(sigma_space, basis, matrix, symmetry_group, irrep)
@@ -64,4 +65,3 @@ class D_matrix_conj(Operator):
                 j1, k1, m1 = b1.R, b1.k, b1.mR
                 matrix[i, i1] = np.sqrt((2 * j + 1) * (2 * j1 + 1)) * wigner_3j(j, 1, j1, -m, sigma_space, m1) * wigner_3j(j, 1, j1, -k, sigma_mol, k1) * (-1) ** (m + k)
         super().__init__(basis, matrix, symmetry_group, irrep)
-
