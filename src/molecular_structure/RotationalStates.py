@@ -221,55 +221,128 @@ def dict_to_tuple(dict, exclude_list):
             a.append(dict[key])
     return tuple(a)
 
+def _atm_wang_basis(basis):
+    """Return real Wang vectors and their prolate (N, ka, kc) labels.
+
+    With a=z, b=x, c=y, the relative sign of the +/-k components is
+    (-1)**(N + ka + kc). Thus kc parity follows the wavefunction symmetry,
+    even when spin-rotation reverses the energy order of a doublet.
+    Convention: https://pgopher.chemistry.bristol.ac.uk/Help/asymsym.htm
+    """
+    lookup = {tuple(sorted(b.quantum_numbers.items())): i for i, b in enumerate(basis)}
+    vectors, labels = [], []
+    for i, b in enumerate(basis):
+        qns = b.quantum_numbers
+        k = qns["k"]
+        if k < 0:
+            continue
+        N = qns.get("N", qns.get("R"))
+        if k == 0:
+            vector = np.zeros(len(basis))
+            vector[i] = 1
+            vectors.append(vector)
+            labels.append({key: value for key, value in qns.items() if key != "k"}
+                          | {"ka": 0, "kc": N})
+            continue
+        partner = dict(qns, k=-k)
+        j = lookup[tuple(sorted(partner.items()))]
+        for kc in (N - k, N - k + 1):
+            vector = np.zeros(len(basis))
+            vector[i] = 1 / np.sqrt(2)
+            vector[j] = (-1)**(N + k + kc) / np.sqrt(2)
+            vectors.append(vector)
+            labels.append({key: value for key, value in qns.items() if key != "k"}
+                          | {"ka": k, "kc": kc})
+    return np.column_stack(vectors), labels
+
+
+def diagonalize_ATM_Hamiltonian(H):
+    """Solve a Hamiltonian preserving ka/kc parity in symmetry blocks.
+
+    Keep each conserved nonrotational quantum number separate (including J
+    and m at zero field). Detect conservation from the actual matrix, so
+    Zeeman terms may mix J and, for transverse fields, m. Subtract the block
+    origin before diagonalizing to avoid losing small splittings to large
+    electronic offsets. The returned coefficients remain in H.basis.
+    """
+    basis = H.basis
+    wang, labels = _atm_wang_basis(basis)
+    rows, cols = np.nonzero(H.matrix)
+    conserved = []
+    for qn in basis[0].quantum_numbers:
+        if qn in ("N", "R", "k"):
+            continue
+        values = np.array([b.quantum_numbers[qn] for b in basis])
+        if np.all(values[rows] == values[cols]):
+            conserved.append(qn)
+
+    groups = {}
+    for i, b in enumerate(basis):
+        key = tuple(b.quantum_numbers[qn] for qn in conserved)
+        groups.setdefault(key, []).append(i)
+    wang_groups = {}
+    for i, qns in enumerate(labels):
+        key = tuple(qns[qn] for qn in conserved)
+        wang_groups.setdefault(key, []).append(i)
+
+    energies, vectors = [], []
+    for key, indices in groups.items():
+        columns = wang_groups[key]
+        transform = wang[np.ix_(indices, columns)]
+        matrix = np.array(H.matrix[np.ix_(indices, indices)], dtype=complex, copy=True)
+        origin = np.trace(matrix).real / len(indices)
+        matrix -= origin * np.eye(len(indices))
+        matrix = transform.T @ matrix @ transform
+        symmetries = [(labels[i]["ka"] % 2, labels[i]["kc"] % 2) for i in columns]
+        blocks = {}
+        for i, symmetry in enumerate(symmetries):
+            blocks.setdefault(symmetry, []).append(i)
+        # Do not silently discard a physical interaction that breaks these
+        # rotational symmetries. Roundoff from the Wang transform is allowed.
+        forbidden = np.array([[a != b for b in symmetries] for a in symmetries])
+        tolerance = 64 * np.finfo(float).eps * max(1, np.max(np.abs(matrix)))
+        if np.any(np.abs(matrix[forbidden]) > tolerance):
+            raise ValueError("Hamiltonian does not conserve ka/kc parity")
+        for block in blocks.values():
+            Es, coeffs = np.linalg.eigh(matrix[np.ix_(block, block)])
+            original_coeffs = transform[:, block] @ coeffs
+            for E, coeff in zip(Es, original_coeffs.T):
+                vector = np.zeros(len(basis), dtype=complex)
+                vector[indices] = coeff
+                energies.append(E + origin)
+                vectors.append(vector)
+
+    order = np.argsort(energies, kind="stable")
+    states = [QuantumState(f"φ_{i}", vectors[j], basis, sorted=True)
+              for i, j in enumerate(order)]
+    return np.asarray(energies)[order], states
+
+
 def rename_ATM_states(states):
-    qn_dict = {} # dictionary {quantum number tuple : states}. # This is to separate states with different quantum numbers so that each of these subspaces can be sorted into ATM states.
+    """Assign near-prolate labels from Wang-component probabilities.
 
-    for s in states:
-        qn_tuple = dict_to_tuple(s[0].quantum_numbers, ("N","k","R"))
-        if qn_tuple not in qn_dict:
-            qn_dict[qn_tuple] = [s]
-        else:
-            qn_dict[qn_tuple].append(s)
-
-    for qn in qn_dict:
-        N_dict = {}
-        for s in qn_dict[qn]: # sort the states with this set of qns into N stacks
-            N = s[0].N
-            if N not in N_dict:
-                N_dict[N] = [s]
-            else:
-                N_dict[N].append(s)
-
-        for N in N_dict:
-            ka = 0
-            i = 0
-            last_state = None
-            while i < len(N_dict[N]):
-                s = N_dict[N][i]
-                s.ka = ka
-                if ka == 0:
-                    s.ka = ka
-                    s.kc = N
-                    i += 1
-                    ka += 1
-                else:
-                    if last_state.ka == ka:
-                        s.ka = ka
-                        s.kc = N - ka
-                        i += 1
-                        ka += 1
-                    else:
-                        s.ka = ka
-                        s.kc = N + 1 - ka
-                        i += 1
-                last_state = s
-                s.label = ""
-                qns = s[0].quantum_numbers
-                for qn in qns:
-                    if qn not in ("N","k","R","J","m","mJ"):
-                        s.label += f"{qn} = {qns[qn]}, "
-                s.label += f"N={N}, ka={s.ka}, kc={s.kc}, "
-                for qn in qns:
-                    if qn in ("J","mJ","m","F"):
-                        s.label += f"{qn} = {qns[qn]}, "
-                s.label = s.label[:-2]
+    N and ka are approximate when spin-rotation mixes rotational states.
+    Sum the probabilities for each (N, ka, kc), then use the most populated
+    assignment. This is independent of energy order, input order, eigenvector
+    phase, and the display ordering/threshold of QuantumState components.
+    """
+    if not states:
+        return
+    basis = states[0].defining_basis
+    if any(s.defining_basis is not basis for s in states):
+        raise ValueError("ATM states must share a defining basis")
+    wang, labels = _atm_wang_basis(basis)
+    probabilities = np.abs(wang.T @ np.column_stack([s.coeff for s in states]))**2
+    for s, weights in zip(states, probabilities.T):
+        populations = {}
+        for qns, weight in zip(labels, weights):
+            key = (qns.get("N", qns.get("R")), qns["ka"], qns["kc"])
+            populations[key] = populations.get(key, 0.0) + weight
+        N, ka, kc = max(populations, key=populations.get)
+        candidates = [i for i, qns in enumerate(labels)
+                      if (qns.get("N", qns.get("R")), qns["ka"], qns["kc"]) == (N, ka, kc)]
+        dominant = max(candidates, key=lambda i: weights[i])
+        s.quantum_numbers = dict(labels[dominant])
+        s.N, s.ka, s.kc = N, ka, kc
+        s.sort()  # Preserve the notebook convention that s[0] is dominant.
+        s.label = ", ".join(f"{qn}={value}" for qn, value in s.quantum_numbers.items())

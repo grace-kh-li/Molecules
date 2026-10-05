@@ -126,9 +126,9 @@ class ATM_molecule:
         self.H = H
 
 
-        from src.molecular_structure.RotationalStates import rename_ATM_states
+        from src.molecular_structure.RotationalStates import diagonalize_ATM_Hamiltonian, rename_ATM_states
 
-        Es, states = H.diagonalize()
+        Es, states = diagonalize_ATM_Hamiltonian(H)
         rename_ATM_states(states)
         self.Es = Es
         self.eigenstates = states
